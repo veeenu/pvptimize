@@ -7,9 +7,11 @@ pub struct AvatarCustomization {
   enabled: Option<bool>,
 }
 
-#[derive(Deserialize, Debug)]
+// Untagged bugs out here
+/*#[derive(Deserialize, Debug)]
 #[serde(untagged, rename_all = "camelCase")]
 pub enum PvPMove {
+  #[serde(rename_all = "camelCase")]
   FastMove {
     unique_id: String,
     #[serde(rename = "type")]
@@ -19,6 +21,7 @@ pub enum PvPMove {
     duration_turns: u16,
     energy_delta: u16,
   },
+  #[serde(rename_all = "camelCase")]
   ChargedMove {
     unique_id: String,
     #[serde(rename = "type")]
@@ -27,6 +30,20 @@ pub enum PvPMove {
     vfx_name: String,
     energy_delta: i16,
   },
+}*/
+
+fn pvp_move_default_duration_turns() -> u16 { 1 }
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct PvPMove {
+  pub unique_id: String,
+  #[serde(rename = "type")]
+  pub type_: String,
+  pub power: f64,
+  pub vfx_name: String,
+  #[serde(default = "pvp_move_default_duration_turns")] // Sometimes, like in the DRAGON_BREATH case, it is absent
+  pub duration_turns: u16,
+  pub energy_delta: i16,
 }
 
 #[derive(Deserialize, Debug)]
@@ -56,7 +73,7 @@ pub struct TypeEffectiveness {
   pub effectiveness: Vec<f64>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone, Copy)]
 #[serde(rename_all = "camelCase")]
 pub struct Stats {
   pub base_attack: u8,
@@ -74,17 +91,17 @@ pub struct ThirdMove {
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PokemonSettings {
-  pokemon_id: String,
+  pub pokemon_id: String,
   family_id: String,
   #[serde(rename = "type")]
-  type1: String,
-  type2: Option<String>,
-  stats: Stats,
-  quick_moves: Vec<String>,
-  cinematic_moves: Vec<String>,
+  pub type1: String,
+  pub type2: Option<String>,
+  pub stats: Stats,
+  pub quick_moves: Vec<String>,
+  pub cinematic_moves: Vec<String>,
   third_move: ThirdMove,
-  candy_to_evolve: u64,
-  form: String,
+  candy_to_evolve: Option<u64>,
+  pub form: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
