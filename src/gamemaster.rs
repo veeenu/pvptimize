@@ -1,6 +1,6 @@
+use crate::model::{Type, TYPE_ORDERING};
 use serde;
-use serde::{Deserialize};
-use crate::model::{TYPE_ORDERING, Type};
+use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
 pub struct AvatarCustomization {
@@ -33,7 +33,7 @@ pub enum PvPMove {
 #[serde(rename_all = "camelCase")]
 struct FormDetail {
   form: String,
-  asset_bundle_suffix: Option<String>
+  asset_bundle_suffix: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -68,7 +68,7 @@ pub struct Stats {
 #[serde(rename_all = "camelCase")]
 pub struct ThirdMove {
   stardust_to_unlock: u64,
-  candy_to_unlock: u64
+  candy_to_unlock: u64,
 }
 
 #[derive(Deserialize, Debug)]
@@ -84,7 +84,7 @@ pub struct PokemonSettings {
   cinematic_moves: Vec<String>,
   third_move: ThirdMove,
   candy_to_evolve: u64,
-  form: String
+  form: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -121,13 +121,13 @@ pub enum GameMasterEntry {
 pub struct ItemTemplate {
   template_id: String,
   #[serde(flatten)]
-  pub entry: Option<GameMasterEntry>
+  pub entry: Option<GameMasterEntry>,
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct GameMaster {
-  pub item_templates: Vec<ItemTemplate>
+  pub item_templates: Vec<ItemTemplate>,
 }
 
 #[cfg(test)]

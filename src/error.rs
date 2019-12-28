@@ -2,5 +2,5 @@
 pub enum Error {
   ParseError(String),
   BoundsError(String),
-  ConversionError(String)
+  ConversionError(String),
 }

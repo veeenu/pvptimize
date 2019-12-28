@@ -8,9 +8,9 @@ use std::convert::TryFrom;
 use std::env;
 use std::fs;
 
+mod error;
 mod gamemaster;
 mod model;
-mod error;
 
 #[derive(Debug)]
 enum Error {
