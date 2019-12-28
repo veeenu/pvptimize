@@ -9,6 +9,8 @@ use std::env;
 use std::fs;
 
 mod gamemaster;
+mod model;
+mod error;
 
 #[derive(Debug)]
 enum Error {

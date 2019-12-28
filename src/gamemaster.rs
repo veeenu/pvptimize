@@ -1,6 +1,6 @@
 use serde;
 use serde::{Deserialize};
-use serde_json;
+use crate::model::{TYPE_ORDERING, Type};
 
 #[derive(Deserialize, Debug)]
 pub struct AvatarCustomization {
@@ -45,23 +45,23 @@ pub struct Form {
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PlayerLevel {
-  cp_multiplier: Vec<f64>,
+  pub cp_multiplier: Vec<f64>,
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct TypeEffectiveness {
-  attack_type: String,
+  pub attack_type: String,
   #[serde(rename = "attackScalar")]
-  effectiveness: Vec<f64>,
+  pub effectiveness: Vec<f64>,
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Stats {
-  base_attack: u8,
-  base_defense: u8,
-  base_stamina: u8,
+  pub base_attack: u8,
+  pub base_defense: u8,
+  pub base_stamina: u8,
 }
 
 #[derive(Deserialize, Debug)]
@@ -118,44 +118,39 @@ pub enum GameMasterEntry {
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-struct ItemTemplate {
+pub struct ItemTemplate {
   template_id: String,
   #[serde(flatten)]
-  entry: Option<GameMasterEntry>
+  pub entry: Option<GameMasterEntry>
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct GameMaster {
-  item_templates: Vec<ItemTemplate>
+  pub item_templates: Vec<ItemTemplate>
 }
 
 #[cfg(test)]
 mod test {
 
   use super::*;
+  use crate::model::Mechanics;
 
   #[test]
   fn test() {
     let gms = std::fs::read_to_string("data/gamemaster.json").unwrap();
     let gm = serde_json::from_str::<GameMaster>(&gms).unwrap();
 
-    for n in gm.item_templates.iter() {
-      if n.entry.is_some() {
-        println!("{:?}", n.entry);
-      }
+    let mech = Mechanics::new(&gm).unwrap();
+    let steel_psychic = mech.dual_type_effectiveness(Type::Steel, Type::Psychic);
 
-      /*match &n.unwrap().entry {
-        Some(GameMasterEntry::PvPMove(c)) => {
-          println!("{:?}", c);
-          ca += 1;
-        }
-        Some(GameMasterEntry::Form(c)) => {
-          println!("{:?}", c);
-          cb += 1;
-        }
-        _ => {}
-      }*/
+    assert!((steel_psychic[&Type::Poison] - 0.391).abs() < 10e-3);
+    assert!((steel_psychic[&Type::Psychic] - 0.391).abs() < 10e-3);
+    assert!((steel_psychic[&Type::Ghost] - 1.6).abs() < 10e-3);
+    assert!((steel_psychic[&Type::Fighting] - 1.).abs() < 10e-3);
+
+    for k in TYPE_ORDERING.iter() {
+      println!("{:>15} {:.3}", format!("{:?}", k), steel_psychic[k]);
     }
   }
 }
