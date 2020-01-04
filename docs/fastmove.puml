@@ -1,0 +1,44 @@
+@startuml
+skinparam backgroundColor White
+skinparam state {
+  StartColor MediumBlue
+  EndColor Red
+  BackgroundColor White
+  BackgroundColor<<Idle>> LightGrey
+  BackgroundColor<<Register>> LightYellow
+  BorderColor Gray
+  FontName Roboto
+}
+
+state "Neutral" as PickMove
+PickMove : Awaiting user input
+
+PickMove -> FastMoveCtr
+PickMove -> ChargedMoveCtr : Conditions for\ncharged move\nsatisfied
+
+state "Fast Move" as FastMoveCtr {
+  state "Idle" as Idle1 <<Idle>>
+  state "Idle" as Idle2 <<Idle>>
+  state "Idle" as Idle3 <<Idle>>
+  state "Idle" as Idle4 <<Idle>>
+  state "Register Fast" as RegisterFast <<Register>>
+  [*] --> RegisterFast : 1 turn
+  [*] --> Idle1 : 2 turns
+  [*] --> Idle2 : 3 turns
+  [*] --> Idle3 : 4 turns
+  [*] --> Idle4 : 5 turns
+
+  Idle4 -> Idle3
+  Idle3 -> Idle2
+  Idle2 -> Idle1
+  Idle1 -> RegisterFast
+}
+
+state "Charged Move" as ChargedMoveCtr {
+  state "Register Charged" as RegisterCharged <<Register>>
+  [*] --> RegisterCharged
+}
+
+RegisterFast -> PickMove
+RegisterCharged -> PickMove
+@enduml

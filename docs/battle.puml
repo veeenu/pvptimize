@@ -1,0 +1,51 @@
+@startuml
+
+state "Both charged moves" as RCBoth
+state "Charged Move Priority to P1" as CMP1
+state "Charged Move Priority to P2" as CMP2
+state "P1 Charged" as RC1
+state "P2 Charged" as RC2
+state "Idle or Register Fast" as IdleOrRF
+RC1: Apply effects of charged move to P2\nApply either Idle or Register Fast effects to P1
+RC2: Apply effects of charged move to P1\nApply either Idle or Register Fast effects to P2
+RCBoth: Evaluate charged move priority
+
+[*] --> IdleOrRF
+
+[*] --> RC1
+[*] --> RC2
+
+[*] --> RCBoth
+
+IdleOrRF --> [*]
+IdleOrRF: Apply effects in parallel
+
+RC1 --> [*]
+RC2 --> [*]
+
+RCBoth --> CMP1
+RCBoth --> CMP2
+
+state "Charged Move Priority to P2" as CMP1 {
+  state "P1 Charged" as CMP1_P1
+  state "P2 Charged" as CMP1_P2
+  CMP1_P1: Apply effects of charged move to P2
+  CMP1_P2: Apply effects of charged move to P1
+
+  CMP1_P1 --> CMP1_P2 : P2 not fainted
+}
+CMP1_P1 --> [*] : P2 fainted
+CMP1_P2 --> [*]
+
+state "Charged Move Priority to P2" as CMP2 {
+  state "P1 Charged" as CMP2_P1
+  state "P2 Charged" as CMP2_P2
+  CMP2_P1: Apply effects of charged move to P2
+  CMP2_P2: Apply effects of charged move to P1
+
+  CMP2_P2 --> CMP2_P1 : P1 not fainted
+}
+CMP2_P2 --> [*] : P1 fainted
+CMP2_P1 --> [*]
+
+@enduml

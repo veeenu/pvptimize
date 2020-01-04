@@ -1,9 +1,7 @@
 use crate::error::*;
 use crate::gamemaster as gm;
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use std::fmt::{self, Display};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum Type {
@@ -229,7 +227,7 @@ impl<'a> Mechanics<'a> {
       charged_moves: charged_moves,
       cp_multiplier: {
         let pl = gm.item_templates.iter().find(|i| match &i.entry {
-          Some(gm::GameMasterEntry::PlayerLevel(pl)) => true,
+          Some(gm::GameMasterEntry::PlayerLevel(_)) => true,
           _ => false,
         });
 
@@ -244,10 +242,10 @@ impl<'a> Mechanics<'a> {
           None => Err(Error::ParseError(
             "Couldn't find PlayerLevel in GameMaster".to_owned(),
           )),
-          _ => Err(Error::ParseError(format!(
+          /*_ => Err(Error::ParseError(format!(
             "Couldn't parse unknown structure {:?}",
             pl
-          ))),
+          ))),*/
         }?;
 
         if cpm.len() != 40 {
