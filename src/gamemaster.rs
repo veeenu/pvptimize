@@ -32,7 +32,9 @@ pub enum PvPMove {
   },
 }*/
 
-fn pvp_move_default_duration_turns() -> u16 { 1 }
+fn pvp_move_default_duration_turns() -> u16 {
+  1
+}
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PvPMove {
@@ -41,7 +43,8 @@ pub struct PvPMove {
   pub type_: String,
   pub power: f64,
   pub vfx_name: String,
-  #[serde(default = "pvp_move_default_duration_turns")] // Sometimes, like in the DRAGON_BREATH case, it is absent
+  #[serde(default = "pvp_move_default_duration_turns")]
+  // Sometimes, like in the DRAGON_BREATH case, it is absent
   pub duration_turns: u16,
   pub energy_delta: i16,
 }
