@@ -24,10 +24,10 @@ pub trait Damage<'a> {
 #[derive(Debug)]
 pub struct FastMove<'a> {
   pub uid: &'a str,
-  type_: Type,
-  power: f64,
-  turns: u16,
-  energy: u16,
+  pub type_: Type,
+  pub power: f64,
+  pub turns: u16,
+  pub energy: u16,
 }
 
 impl<'a> TryFrom<&'a gm::PvPMove> for FastMove<'a> {
@@ -68,6 +68,7 @@ impl<'a> Damage<'a> for FastMove<'a> {
     let effectiveness = target.type_effectiveness(self);
     (
       (
+        1.3 *
         0.5 *
         self.power *
         (source.attack() / target.defense()) *
@@ -85,9 +86,9 @@ impl<'a> Damage<'a> for FastMove<'a> {
 #[derive(Debug)]
 pub struct ChargedMove<'a> {
   pub uid: &'a str,
-  type_: Type,
-  power: f64,
-  energy: i16,
+  pub type_: Type,
+  pub power: f64,
+  pub energy: i16,
 }
 
 impl<'a> TryFrom<&'a gm::PvPMove> for ChargedMove<'a> {
@@ -129,6 +130,7 @@ impl<'a> Damage<'a> for ChargedMove<'a> {
     let effectiveness = target.type_effectiveness(self);
     (
       (
+        1.3 *
         0.5 *
         self.power *
         (source.attack() / target.defense()) *
