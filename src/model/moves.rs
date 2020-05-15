@@ -12,7 +12,7 @@ use std::convert::TryFrom;
 // Floor(0.5 ∗ Power ∗ Atk / Def ∗ STAB ∗ Effective) + 1
 // https://pokemongohub.net/post/questions-and-answers/move-damage-output-actually-calculated/
 pub trait Damage<'a> {
-  fn calculate(&self, source: &PokemonInstance<'a>, target: &PokemonInstance<'a>) -> u16;
+  fn calculate(&self, source: &PokemonInstance<'a>, target: &PokemonInstance<'a>) -> i32;
   fn type_(&self) -> &Type;
   fn stab(&self, p: &Pokemon<'a>) -> bool;
 }
@@ -26,8 +26,8 @@ pub struct FastMove<'a> {
   pub uid: &'a str,
   pub type_: Type,
   pub power: f64,
-  pub turns: u16,
-  pub energy: u16,
+  pub turns: i32,
+  pub energy: i32,
 }
 
 impl<'a> TryFrom<&'a gm::PvPMove> for FastMove<'a> {
@@ -42,7 +42,7 @@ impl<'a> TryFrom<&'a gm::PvPMove> for FastMove<'a> {
         })?,
         power: s.power,
         turns: s.duration_turns,
-        energy: s.energy_delta as u16,
+        energy: s.energy_delta,
       })
     } else {
       Err(Error::ConversionError(format!(
@@ -63,7 +63,7 @@ impl<'a> Damage<'a> for FastMove<'a> {
     &self.type_
   }
 
-  fn calculate(&self, source: &PokemonInstance<'a>, target: &PokemonInstance<'a>) -> u16 {
+  fn calculate(&self, source: &PokemonInstance<'a>, target: &PokemonInstance<'a>) -> i32 {
     let stab = if source.stab(self) { 1.2 } else { 1.0 };
     let effectiveness = target.type_effectiveness(self);
     (
@@ -75,7 +75,7 @@ impl<'a> Damage<'a> for FastMove<'a> {
         stab *
         effectiveness
       ).floor() + 1.0
-    ) as _
+    ).round() as _
   }
 }
 
@@ -105,7 +105,7 @@ impl<'a> TryFrom<&'a gm::PvPMove> for ChargedMove<'a> {
           ))
         })?,
         power: s.power,
-        energy: s.energy_delta,
+        energy: s.energy_delta as _,
       })
     } else {
       Err(Error::ConversionError(format!(
@@ -125,7 +125,7 @@ impl<'a> Damage<'a> for ChargedMove<'a> {
     &self.type_
   }
 
-  fn calculate(&self, source: &PokemonInstance<'a>, target: &PokemonInstance<'a>) -> u16 {
+  fn calculate(&self, source: &PokemonInstance<'a>, target: &PokemonInstance<'a>) -> i32 {
     let stab = if source.stab(self) { 1.2 } else { 1.0 };
     let effectiveness = target.type_effectiveness(self);
     (
@@ -137,6 +137,6 @@ impl<'a> Damage<'a> for ChargedMove<'a> {
         stab *
         effectiveness
       ).floor() + 1.0
-    ) as _
+    ).round() as _
   }
 }

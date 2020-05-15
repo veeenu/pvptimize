@@ -25,12 +25,12 @@ pub struct Pokemon<'a> {
 // === Level ===
 
 pub struct Level {
-  pub level: u8,
+  pub level: u16,
   pub a_half: bool,
 }
 
-impl From<&Level> for u8 {
-  fn from(l: &Level) -> u8 {
+impl From<&Level> for u16 {
+  fn from(l: &Level) -> u16 {
     (l.level - 1) * 2 + (if l.a_half { 1 } else { 0 })
   }
 }
@@ -42,15 +42,15 @@ impl From<&Level> for u8 {
 pub struct PokemonInstance<'a> {
   pokemon: &'a Pokemon<'a>,
 
-  atk_iv: u8,
-  def_iv: u8,
-  sta_iv: u8,
+  atk_iv: u16,
+  def_iv: u16,
+  sta_iv: u16,
 
   level: Level,
 
   pub fast_move: &'a FastMove<'a>,
   pub charged_move1: &'a ChargedMove<'a>,
-  pub charged_move2: Option<&'a ChargedMove<'a>>,
+  pub charged_move2: &'a ChargedMove<'a>,
 }
 
 impl<'a> PokemonInstance<'a>
@@ -99,13 +99,14 @@ impl<'a> PokemonInstance<'a>
   pub fn new(
     pok: &'a Pokemon,
     level: Level,
-    atk_iv: u8,
-    def_iv: u8,
-    sta_iv: u8,
+    atk_iv: u16,
+    def_iv: u16,
+    sta_iv: u16,
     fast_move: &str,
     charged_move1: &str,
     charged_move2: Option<&str>,
   ) -> Result<PokemonInstance<'a>, Error> {
+    let charged_move2 = charged_move2.unwrap_or(charged_move1);
     Ok(PokemonInstance {
       pokemon: pok,
       atk_iv: atk_iv,
@@ -130,17 +131,14 @@ impl<'a> PokemonInstance<'a>
           )))
         }
       },
-      charged_move2: match charged_move2 {
-        Some(cm2) => match pok.charged_moves.iter().find(|&i| i.uid == cm2) {
-          Some(&i) => Some(i),
-          None => {
-            return Err(Error::ParseError(format!(
-              "Charged move {} not found for {}",
-              fast_move, pok.id
-            )))
-          }
-        },
-        None => None,
+      charged_move2: match pok.charged_moves.iter().find(|&i| i.uid == charged_move2) {
+        Some(&i) => i,
+        None => {
+          return Err(Error::ParseError(format!(
+            "Charged move {} not found for {}",
+            fast_move, pok.id
+          )))
+        }
       },
     })
   }

@@ -108,9 +108,9 @@ impl<'a> Mechanics<'a> {
           ))),*/
         }?;
 
-        if cpm.len() != 40 {
+        if cpm.len() != 45 {
           return Err(Error::ParseError(format!(
-            "{} != 40 CPM entries",
+            "{} != 45 CPM entries",
             cpm.len()
           )));
         }
@@ -193,14 +193,14 @@ impl<'a> Mechanics<'a> {
   // TODO
   // This really warrants numerical constrained types, which aren't a thing yet.
   // Could use Results but it would add so much more code and it isn't worth it
-  // as the checking should be performed upstream -- no Level into u8 should ever
+  // as the checking should be performed upstream -- no Level into u16 should ever
   // be above 79 in a Pokémon, and if it is, then there's some inconsistency.
   // Should perform the check at the input boundary, i.e. JSON deserialization
   // and whatnot and, until we have more powerful instruments to check for it,
   // assume it's never going to be above 79.
   //
   pub fn cp_multiplier(&self, l: &Level) -> f64 {
-    let l: u8 = l.into();
+    let l: u16 = l.into();
     // if l > 79 {
     //  return Err(Error::BoundsError(format!("Sought CPM for level {} > 40", l)));
     //}

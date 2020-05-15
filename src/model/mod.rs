@@ -92,13 +92,13 @@ mod tests {
 
   #[test]
   fn test_level_conversion() {
-    let l: u8 = (&Level {
+    let l: u16 = (&Level {
       level: 40,
       a_half: false,
     })
       .into();
     assert_eq!(l, 78);
-    let l: u8 = (&Level {
+    let l: u16 = (&Level {
       level: 27,
       a_half: true,
     })

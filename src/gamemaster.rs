@@ -32,7 +32,7 @@ pub enum PvPMove {
   },
 }*/
 
-fn pvp_move_default_duration_turns() -> u16 {
+fn pvp_move_default_duration_turns() -> i32 {
   1
 }
 #[derive(Deserialize, Debug)]
@@ -45,8 +45,8 @@ pub struct PvPMove {
   pub vfx_name: String,
   #[serde(default = "pvp_move_default_duration_turns")]
   // Sometimes, like in the DRAGON_BREATH case, it is absent
-  pub duration_turns: u16,
-  pub energy_delta: i16,
+  pub duration_turns: i32,
+  pub energy_delta: i32,
 }
 
 #[derive(Deserialize, Debug)]
@@ -79,9 +79,9 @@ pub struct TypeEffectiveness {
 #[derive(Deserialize, Debug, Clone, Copy)]
 #[serde(rename_all = "camelCase")]
 pub struct Stats {
-  pub base_attack: u8,
-  pub base_defense: u8,
-  pub base_stamina: u8,
+  pub base_attack: u16,
+  pub base_defense: u16,
+  pub base_stamina: u16,
 }
 
 #[derive(Deserialize, Debug)]
@@ -128,12 +128,12 @@ pub enum GameMasterEntry {
   Form(Form),
   #[serde(rename = "playerLevel")]
   PlayerLevel(PlayerLevel),
-  #[serde(rename = "pokemonSettings")]
-  PokemonSettings(PokemonSettings),
   #[serde(rename = "pokemonUpgrades")]
   PokemonUpgrades(PokemonUpgrades),
   #[serde(rename = "typeEffective")]
   TypeEffectiveness(TypeEffectiveness),
+  #[serde(rename = "pokemonSettings")]
+  PokemonSettings(PokemonSettings),
 }
 
 #[derive(Deserialize, Debug)]

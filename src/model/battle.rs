@@ -5,38 +5,48 @@ pub trait StateMachine<D> {
   fn transition(self: &Self, env: D) -> Self;
 }
 
-/*pub enum Turns {
-  T5, T4, T3, T2, T1
-}*/
+#[derive(Debug, Copy, Clone)]
+enum ChargedChoice {
+  Main, Other
+}
 
-#[derive(Debug)]
-pub enum MoveSM {
+#[derive(Debug, Copy, Clone)]
+pub enum MoveStateMachine {
   Neutral,
-  Idle(u16),
+  Idle(i32),
   RegisterFast,
-  RegisterCharged
+  RegisterCharged(ChargedChoice)
 }
 
 // TODO: consider also the other pokemon
-impl<'a> StateMachine<&'a BattlingPokemon<'a>> for MoveSM {
-  fn transition(&self, pok: &'a BattlingPokemon<'a>) -> Self {
+impl<'a> StateMachine<(&'a PokemonState<'a>, &'a PokemonState<'a>)> for MoveStateMachine {
+  fn transition(&self, env: (&'a PokemonState<'a>, &'a PokemonState<'a>)) -> Self {
+    let (pok, opponent) = env;
     match self {
-      MoveSM::Neutral => {
-        if (pok.energy as i16) + pok.pokemon.charged_move1.energy > 0 {
-          MoveSM::RegisterCharged
+      MoveStateMachine::Neutral => {
+        if ((pok.energy as i16) + pok.pokemon.charged_move2.energy >= 0) &&
+            (
+              pok.would_charged_kill(ChargedChoice::Other, opponent) ||
+              opponent.shields != Shields::None ||
+              true // TODO "The opponent's next action would result in a KO"
+            )
+        {
+          MoveStateMachine::RegisterCharged(ChargedChoice::Other)
+        } else if (pok.energy as i16) + pok.pokemon.charged_move1.energy >= 0 {
+          MoveStateMachine::RegisterCharged(ChargedChoice::Main)
         } else {
-          MoveSM::Idle(pok.pokemon.fast_move.turns).transition(pok)
+          MoveStateMachine::Idle(pok.pokemon.fast_move.turns - 1).transition(env)
         }
       },
-      MoveSM::Idle(0) => MoveSM::RegisterFast,
-      MoveSM::Idle(i) => MoveSM::Idle(i - 1),
-      MoveSM::RegisterFast => MoveSM::Neutral.transition(pok),
-      MoveSM::RegisterCharged => MoveSM::Neutral.transition(pok)
+      MoveStateMachine::Idle(0) => MoveStateMachine::RegisterFast,
+      MoveStateMachine::Idle(i) => MoveStateMachine::Idle(i - 1),
+      MoveStateMachine::RegisterFast => MoveStateMachine::Neutral.transition(env),
+      MoveStateMachine::RegisterCharged(_) => MoveStateMachine::Neutral.transition(env)
     }
   }
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum Shields {
   Two,
   One,
@@ -59,52 +69,91 @@ impl Shields {
   }
 }
 
-struct BaseDamages {
-  fast1v2: u16,
-  charged_main1v2: u16,
-  charged_other1v2: Option<u16>,
-  fast2v1: u16,
-  charged_main2v1: u16,
-  charged_other2v1: Option<u16>,
-}
-
-impl BaseDamages {
-  fn new(pok1: &PokemonInstance<'_>, pok2: &PokemonInstance<'_>) -> BaseDamages {
-    BaseDamages {
-      fast1v2: pok1.fast_move.calculate(pok1, pok2),
-      charged_main1v2: pok1.charged_move1.calculate(pok1, pok2),
-      charged_other1v2: pok1.charged_move2.map(|m| m.calculate(pok1, pok2)),
-      fast2v1: pok2.fast_move.calculate(pok2, pok1),
-      charged_main2v1: pok2.charged_move1.calculate(pok2, pok1),
-      charged_other2v1: pok2.charged_move2.map(|m| m.calculate(pok2, pok1)),
-    }
-  }
-}
-
-pub struct BattlingPokemon<'a> {
+pub struct PokemonState<'a> {
   pokemon: &'a PokemonInstance<'a>,
-  health: u32,
-  energy: u32,
-  shields: Shields
+  health: i32,
+  energy: i32,
+  shields: Shields,
+  state: MoveStateMachine,
 }
 
-impl<'a> BattlingPokemon<'a> {
-  fn new(pokemon: &'a PokemonInstance<'a>, shields: Shields) -> BattlingPokemon<'a> {
-    BattlingPokemon {
+impl<'a> PokemonState<'a> {
+  fn new(
+    pokemon  : &'a PokemonInstance<'a>,
+    shields  : Shields
+  ) -> PokemonState<'a> {
+    PokemonState {
       pokemon,
       shields,
       health: pokemon.stamina() as _,
       energy: 0,
+      state: MoveStateMachine::Neutral
     }
+  }
+
+  fn defend_charged(&mut self, damage: i32) {
+    match self.shields {
+      Shields::None => self.health = i32::max(0, self.health as i32 - damage) as _,
+      _ => self.shields = self.shields.transition(())
+    }
+  }
+
+  // TODO returns "is other dead?", use a dedicated type for clarity
+  fn register_fast(&mut self, opponent: &mut PokemonState<'a>) -> bool { 
+    let health = opponent.health as i32;
+    let damage = self.pokemon.fast_move.calculate(self.pokemon, opponent.pokemon);
+    let energy = self.pokemon.fast_move.energy;
+
+    opponent.health = i32::max(0, health - damage) as _;
+    self.energy += energy as i32;
+
+    opponent.health == 0
+  }
+
+  fn register_charged(&mut self, choice: ChargedChoice, opponent: &mut PokemonState<'a>) -> bool {
+    let charged_move = match choice {
+      ChargedChoice::Main => self.pokemon.charged_move1,
+      ChargedChoice::Other => self.pokemon.charged_move2,
+    };
+
+    let health = opponent.health as i32;
+    let damage = charged_move.calculate(self.pokemon, opponent.pokemon);
+    let energy_expenditure = charged_move.energy as i32;
+    let current_energy = self.energy as i32;
+
+    opponent.defend_charged(damage);
+    self.energy = i32::max(0, current_energy + energy_expenditure) as _;
+
+    opponent.health == 0
+  }
+
+  fn would_charged_kill(&self, choice: ChargedChoice, opponent: &PokemonState<'a>) -> bool {
+    let charged_move = match choice {
+      ChargedChoice::Main => self.pokemon.charged_move1,
+      ChargedChoice::Other => self.pokemon.charged_move2,
+    };
+    let damage = charged_move.calculate(self.pokemon, opponent.pokemon);
+    damage > opponent.health
+  }
+
+  fn transition(&mut self, other: &PokemonState<'a>) -> MoveStateMachine {
+    self.state = self.state.transition((self, other));
+    self.state
   }
 }
 
+#[derive(Debug)]
+pub enum BattleOutcome {
+  Continue,
+  Win,
+  Loss,
+  Draw,
+}
+
 pub struct Battle<'a> {
-  pokemon1: BattlingPokemon<'a>,
-  pokemon2: BattlingPokemon<'a>,
-  base_damages: BaseDamages,
-  state1: MoveSM,
-  state2: MoveSM,
+  pokemon1: PokemonState<'a>,
+  pokemon2: PokemonState<'a>,
+  turn: u16
 }
 
 impl<'a> Battle<'a> {
@@ -115,109 +164,78 @@ impl<'a> Battle<'a> {
     shields2: Shields,
   ) -> Battle<'a> {
     Battle {
-      pokemon1: BattlingPokemon::new(pokemon1, shields1),
-      pokemon2: BattlingPokemon::new(pokemon2, shields2),
-      base_damages: BaseDamages::new(pokemon1, pokemon2),
-      state1: MoveSM::Neutral,
-      state2: MoveSM::Neutral,
+      pokemon1: PokemonState::new(pokemon1, shields1),
+      pokemon2: PokemonState::new(pokemon2, shields2),
+      turn: 0
     }
   }
 
-  fn register_fast1(&mut self) {
-    let health = self.pokemon2.health as i32;
-    let damage = self.base_damages.fast1v2 as i32;
-    let energy = self.pokemon1.pokemon.fast_move.energy as u32;
+  pub fn turn(&mut self) -> BattleOutcome {
+    let old_state1 = self.pokemon1.state;
+    let old_state2 = self.pokemon2.state;
+    let new_state1 = self.pokemon1.transition(&self.pokemon2);
+    let new_state2 = self.pokemon2.transition(&self.pokemon1);
 
-    self.pokemon2.health = i32::max(0, health - damage) as u32;
-    self.pokemon1.energy += energy;
-    // If pokemon 2 dead then...
-  }
-  fn register_fast2(&mut self) {
-    let health = self.pokemon1.health as i32;
-    let damage = self.base_damages.fast2v1 as i32;
-    let energy = self.pokemon2.pokemon.fast_move.energy as u32;
-
-    self.pokemon1.health = i32::max(0, health - damage) as u32;
-    self.pokemon2.energy += energy;
-    // If pokemon 1 dead then...
-  }
-
-  fn register_charged1(&mut self) {
-    let health = self.pokemon2.health as i32;
-    let damage = self.base_damages.charged_main1v2 as i32;
-    let energy = self.pokemon1.pokemon.charged_move1.energy as i32;
-    let pk_energy = self.pokemon1.energy as i32;
-
-    self.pokemon2.health = i32::max(0, health - damage) as u32;
-    self.pokemon1.energy = i32::max(0, pk_energy + energy) as u32;
-    // If pokemon 2 dead then...
-  }
-
-  fn register_charged2(&mut self) {
-    let health = self.pokemon1.health as i32;
-    let damage = self.base_damages.charged_main2v1 as i32;
-    let energy = self.pokemon2.pokemon.charged_move1.energy as i32;
-    let pk_energy = self.pokemon2.energy as i32;
-
-    self.pokemon1.health = i32::max(0, health - damage) as u32;
-    self.pokemon2.energy = i32::max(0, pk_energy + energy) as u32;
-    // If pokemon 1 dead then...
-  }
-
-  pub fn turn(&mut self) {
-    let new_state1 = self.state1.transition(&self.pokemon1);
-    let new_state2 = self.state2.transition(&self.pokemon2);
-
-    println!("{:?} {:?}", new_state1, new_state2);
+    {
+      let p1 = &self.pokemon1;
+      let p2 = &self.pokemon2;
+      println!("\n  === Turn {:>5} ===", self.turn);
+      println!("{:?} -> {:?} H {:>4} E {:>4} {:?}", old_state1, new_state1, p1.health, p1.energy, p1.shields);
+      println!("{:?} -> {:?} H {:>4} E {:>4} {:?}", old_state2, new_state2, p2.health, p2.energy, p2.shields);
+    }
 
     match (new_state1, new_state2) {
-      (MoveSM::RegisterCharged, MoveSM::RegisterCharged) => {
+      (MoveStateMachine::RegisterCharged(choice1), MoveStateMachine::RegisterCharged(choice2)) => {
         // CMP Tie
         if self.pokemon1.pokemon.attack() > self.pokemon2.pokemon.attack() {
-          self.register_charged1();
-          self.register_charged2();
+          self.pokemon1.register_charged(choice1, &mut self.pokemon2);
+          self.pokemon2.register_charged(choice2, &mut self.pokemon1);
         } else {
-          self.register_charged2();
-          self.register_charged1();
+          self.pokemon2.register_charged(choice2, &mut self.pokemon1);
+          self.pokemon1.register_charged(choice1, &mut self.pokemon2);
         }
       },
-      (MoveSM::RegisterCharged, MoveSM::Idle(_)) => {
-        self.register_charged1();
+      (MoveStateMachine::RegisterCharged(choice), MoveStateMachine::Idle(_)) => {
+        self.pokemon1.register_charged(choice, &mut self.pokemon2);
       },
-      (MoveSM::RegisterCharged, MoveSM::RegisterFast) => {
-        self.register_charged1();
-        self.register_fast2();
+      (MoveStateMachine::RegisterCharged(choice), MoveStateMachine::RegisterFast) => {
+        self.pokemon1.register_charged(choice, &mut self.pokemon2);
+        self.pokemon2.register_fast(&mut self.pokemon1);
       },
-      (MoveSM::Idle(_), MoveSM::RegisterCharged) => {
-        self.register_charged2();
+      (MoveStateMachine::Idle(_), MoveStateMachine::RegisterCharged(choice)) => {
+        self.pokemon2.register_charged(choice, &mut self.pokemon1);
       },
-      (MoveSM::RegisterFast, MoveSM::RegisterCharged) => {
-        self.register_charged2();
-        self.register_fast1();
+      (MoveStateMachine::RegisterFast, MoveStateMachine::RegisterCharged(choice)) => {
+        self.pokemon2.register_charged(choice, &mut self.pokemon1);
+        self.pokemon1.register_fast(&mut self.pokemon2);
       },
-      (MoveSM::RegisterFast, MoveSM::Idle(_)) => {
-        self.register_fast1();
+      (MoveStateMachine::RegisterFast, MoveStateMachine::Idle(_)) => {
+        self.pokemon1.register_fast(&mut self.pokemon2);
       },
-      (MoveSM::Idle(_), MoveSM::RegisterFast) => {
-        self.register_fast2();
+      (MoveStateMachine::Idle(_), MoveStateMachine::RegisterFast) => {
+        self.pokemon2.register_fast(&mut self.pokemon1);
       },
-      (MoveSM::RegisterFast, MoveSM::RegisterFast) => {
-        self.register_fast1();
-        self.register_fast2();
+      (MoveStateMachine::RegisterFast, MoveStateMachine::RegisterFast) => {
+        self.pokemon1.register_fast(&mut self.pokemon2);
+        self.pokemon2.register_fast(&mut self.pokemon1);
       },
-      (MoveSM::Idle(_), MoveSM::Idle(_)) => {},
-      (Neutral, _) => unreachable!(),
-      (_, Neutral) => unreachable!(),
+      (MoveStateMachine::Idle(_), MoveStateMachine::Idle(_)) => {},
+      (MoveStateMachine::Neutral, _) => unreachable!(),
+      (_, MoveStateMachine::Neutral) => unreachable!(),
     }
 
-    self.state1 = self.state1.transition(&self.pokemon1);
-    self.state2 = self.state2.transition(&self.pokemon2);
+    self.turn += 1;
 
-    let p1 = &self.pokemon1;
-    let p2 = &self.pokemon2;
-    println!("\n  === Turn ===");
-    println!("{:?} {} {}", self.state1, p1.health, p1.energy);
-    println!("{:?} {} {}", self.state2, p2.health, p2.energy);
+    let outcome = match (self.pokemon1.health, self.pokemon2.health) {
+      (0, 0) => BattleOutcome::Draw,
+      (0, a) if a > 0 => BattleOutcome::Loss,
+      (a, 0) if a > 0 => BattleOutcome::Win,
+      (_, _) => BattleOutcome::Continue
+    };
+
+    println!("{:?}", outcome);
+
+    outcome
   }
 }
 
@@ -231,6 +249,7 @@ mod tests {
 
   #[test]
   fn test_victreebel_vs_whiscash() {
+    // https://pvpoke.com/battle/1500/victreebel-23-1-15-15-4-4-1/whiscash-28-0-14-13-4-4-1/22/1-2-1/0-2-1/
     let gms = std::fs::read_to_string("data/gamemaster.json").unwrap();
     let gm = serde_json::from_str::<GameMaster>(&gms).unwrap();
 
@@ -243,8 +262,8 @@ mod tests {
       Level { level: 23, a_half: false },
       1, 15, 15,
       "RAZOR_LEAF_FAST",
-      "SOLAR_BEAM",
-      None
+      "LEAF_BLADE",
+      Some("ACID_SPRAY")
     ).unwrap();
 
     let whiscash = poks.iter().find(|i| i.id == "WHISCASH").unwrap();
@@ -254,27 +273,54 @@ mod tests {
       0, 14, 13,
       "MUD_SHOT_FAST",
       "BLIZZARD",
-      None
+      Some("MUD_BOMB"),
     ).unwrap();
 
-    let mut battle = Battle::new(&victreebel, &whiscash, Shields::None, Shields::None);
+    let mut battle = Battle::new(&victreebel, &whiscash, Shields::Two, Shields::Two);
 
-    battle.turn();
-    battle.turn();
-    battle.turn();
-    battle.turn();
-    battle.turn();
-    battle.turn();
-    battle.turn();
-    battle.turn();
-    battle.turn();
-    battle.turn();
-    battle.turn();
-    battle.turn();
-    battle.turn();
-    battle.turn();
-    battle.turn();
-    battle.turn();
+    loop {
+      match battle.turn() {
+        BattleOutcome::Continue => {},
+        _ => break
+      }
+    }
+  }
 
+  #[test]
+  fn test_registeel_mirror() {
+    // https://pvpoke.com/battle/1500/registeel-22.5-15-2-5-4-4-1/registeel-24.5-1-12-1-4-4-1/22/0-1-2/0-1-2/
+    let gms = std::fs::read_to_string("data/gamemaster.json").unwrap();
+    let gm = serde_json::from_str::<GameMaster>(&gms).unwrap();
+
+    let mech = Mechanics::new(&gm).unwrap();
+    let poks = mech.pokemon().unwrap();
+
+    let regi = poks.iter().find(|i| i.id == "REGISTEEL").unwrap();
+    let regi1 = PokemonInstance::new(
+      regi,
+      Level { level: 22, a_half: true },
+      15, 2, 5,
+      "LOCK_ON_FAST",
+      "FLASH_CANNON",
+      Some("FOCUS_BLAST")
+    ).unwrap();
+
+    let regi2 = PokemonInstance::new(
+      regi,
+      Level { level: 24, a_half: true },
+      1, 12, 1,
+      "LOCK_ON_FAST",
+      "FLASH_CANNON",
+      Some("FOCUS_BLAST")
+    ).unwrap();
+
+    let mut battle = Battle::new(&regi1, &regi2, Shields::Two, Shields::Two);
+
+    loop {
+      match battle.turn() {
+        BattleOutcome::Continue => {},
+        _ => break
+      }
+    }
   }
 }
