@@ -33,8 +33,9 @@ pub enum PvPMove {
 }*/
 
 fn pvp_move_default_duration_turns() -> i32 {
-  1
+  0
 }
+
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PvPMove {

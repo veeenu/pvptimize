@@ -35,7 +35,7 @@ impl<'a> StateMachine<(&'a PokemonState<'a>, &'a PokemonState<'a>)> for MoveStat
         } else if (pok.energy as i16) + pok.pokemon.charged_move1.energy >= 0 {
           MoveStateMachine::RegisterCharged(ChargedChoice::Main)
         } else {
-          MoveStateMachine::Idle(pok.pokemon.fast_move.turns - 1).transition(env)
+          MoveStateMachine::Idle(pok.pokemon.fast_move.turns).transition(env)
         }
       },
       MoveStateMachine::Idle(0) => MoveStateMachine::RegisterFast,
@@ -58,7 +58,7 @@ impl StateMachine<()> for Shields {
     match self {
       Shields::Two => Shields::One,
       Shields::One => Shields::None,
-      Shields::None => Shields::None
+      Shields::None => Shields::None // BRB
     }
   }
 }
@@ -189,10 +189,10 @@ impl<'a> Battle<'a> {
         // CMP Tie
         if self.pokemon1.pokemon.attack() > self.pokemon2.pokemon.attack() {
           self.pokemon1.register_charged(choice1, &mut self.pokemon2);
-          self.pokemon2.register_charged(choice2, &mut self.pokemon1);
+          self.pokemon2.register_charged(choice2, &mut self.pokemon1); // TODO block if it has been killed
         } else {
           self.pokemon2.register_charged(choice2, &mut self.pokemon1);
-          self.pokemon1.register_charged(choice1, &mut self.pokemon2);
+          self.pokemon1.register_charged(choice1, &mut self.pokemon2); // TODO block if it has been killed
         }
       },
       (MoveStateMachine::RegisterCharged(choice), MoveStateMachine::Idle(_)) => {
@@ -287,6 +287,55 @@ mod tests {
   }
 
   #[test]
+  fn test_lucario_mirror() {
+    // https://pvpoke.com/battle/1500/lucario-21-15-0-0-4-4-1/lucario-20.5-0-15-15-4-4-1/22/1-1-5/1-1-5/
+    let gms = std::fs::read_to_string("data/gamemaster.json").unwrap();
+    let gm = serde_json::from_str::<GameMaster>(&gms).unwrap();
+
+    let mech = Mechanics::new(&gm).unwrap();
+    let poks = mech.pokemon().unwrap();
+
+    let lucario_data = poks.iter().find(|i| i.id == "LUCARIO").unwrap();
+
+    let lucario_attacker = PokemonInstance::new(
+      lucario_data,
+      Level { level: 21, a_half: false },
+      15, 0, 0,
+      "COUNTER_FAST",
+      "AURA_SPHERE",
+      Some("SHADOW_BALL"),
+    ).unwrap();
+
+    let lucario_defender = PokemonInstance::new(
+      lucario_data,
+      Level { level: 20, a_half: true },
+      0, 15, 15,
+      "COUNTER_FAST",
+      "AURA_SPHERE",
+      Some("SHADOW_BALL"),
+    ).unwrap();
+
+    assert_eq!(lucario_attacker.cp(), 1480);
+    assert_eq!(lucario_defender.cp(), 1488);
+
+    let mut battle = Battle::new(&lucario_attacker, &lucario_defender, Shields::Two, Shields::Two);
+
+    loop {
+      match battle.turn() {
+        BattleOutcome::Continue => {},
+        _ => break
+      }
+    }
+
+    println!("{} {} | {} {}",
+      battle.pokemon1.health,
+      battle.pokemon1.energy,
+      battle.pokemon2.health,
+      battle.pokemon2.energy,
+    );
+  }
+
+  #[test]
   fn test_registeel_mirror() {
     // https://pvpoke.com/battle/1500/registeel-22.5-15-2-5-4-4-1/registeel-24.5-1-12-1-4-4-1/22/0-1-2/0-1-2/
     let gms = std::fs::read_to_string("data/gamemaster.json").unwrap();
@@ -322,5 +371,12 @@ mod tests {
         _ => break
       }
     }
+
+    println!("{} {} | {} {}",
+      battle.pokemon1.health,
+      battle.pokemon1.energy,
+      battle.pokemon2.health,
+      battle.pokemon2.energy,
+    );
   }
 }
