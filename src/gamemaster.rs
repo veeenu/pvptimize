@@ -7,31 +7,6 @@ pub struct AvatarCustomization {
   enabled: Option<bool>,
 }
 
-// Untagged bugs out here
-/*#[derive(Deserialize, Debug)]
-#[serde(untagged, rename_all = "camelCase")]
-pub enum PvPMove {
-  #[serde(rename_all = "camelCase")]
-  FastMove {
-    unique_id: String,
-    #[serde(rename = "type")]
-    type_: String,
-    power: f64,
-    vfx_name: String,
-    duration_turns: u16,
-    energy_delta: u16,
-  },
-  #[serde(rename_all = "camelCase")]
-  ChargedMove {
-    unique_id: String,
-    #[serde(rename = "type")]
-    type_: String,
-    power: f64,
-    vfx_name: String,
-    energy_delta: i16,
-  },
-}*/
-
 fn pvp_move_default_duration_turns() -> i32 {
   0
 }
@@ -46,6 +21,8 @@ pub struct PvPMove {
   pub vfx_name: String,
   #[serde(default = "pvp_move_default_duration_turns")]
   // Sometimes, like in the DRAGON_BREATH case, it is absent
+  // Explanation: 1-turn moves have it undefined, n-turn moves have it set at n-1
+  // Sort of "how many turns do I have to waste in excess of 1"
   pub duration_turns: i32,
   pub energy_delta: i32,
 }

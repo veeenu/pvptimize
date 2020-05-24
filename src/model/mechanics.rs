@@ -5,32 +5,32 @@ use crate::model::moves::*;
 use crate::model::pokemon::*;
 
 use std::collections::HashMap;
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
 // =================
 // === Mechanics ===
 // =================
 
-pub struct Mechanics<'a> {
-  gamemaster: &'a gm::GameMaster,
+pub struct Mechanics {
+  // gamemaster: &'a gm::GameMaster,
 
-  // pokemon: Vec<Pokemon<'a>>,
-  pub fast_moves: HashMap<&'a str, FastMove<'a>>,
-  pub charged_moves: HashMap<&'a str, ChargedMove<'a>>,
+  pokemon: Vec<Pokemon>,
+  pub fast_moves: HashMap<String, FastMove>,
+  pub charged_moves: HashMap<String, ChargedMove>,
 
   pub cp_multiplier: [f64; 79],
   pub type_effectiveness: HashMap<Type, HashMap<Type, f64>>,
 }
 
-impl<'a> Mechanics<'a> {
-  pub fn new(gm: &'a gm::GameMaster) -> Result<Mechanics<'a>, Error> {
+impl Mechanics {
+  pub fn new(gm: gm::GameMaster) -> Result<Mechanics, Error> {
     let fast_moves = {
       gm.item_templates
         .iter()
         .filter_map(|i| match &i.entry {
           Some(gm::GameMasterEntry::PvPMove(m)) => {
             if m.energy_delta >= 0 {
-              Some((m.unique_id.as_str(), FastMove::try_from(m).unwrap()))
+              Some((m.unique_id.to_owned(), FastMove::try_from(m).unwrap()))
             } else {
               None
             }
@@ -46,7 +46,7 @@ impl<'a> Mechanics<'a> {
         .filter_map(|i| match &i.entry {
           Some(gm::GameMasterEntry::PvPMove(m)) => {
             if m.energy_delta < 0 {
-              Some((m.unique_id.as_str(), ChargedMove::try_from(m).unwrap()))
+              Some((m.unique_id.to_owned(), ChargedMove::try_from(m).unwrap()))
             } else {
               None
             }
@@ -56,35 +56,38 @@ impl<'a> Mechanics<'a> {
         .collect()
     };
 
-    Ok(Mechanics {
-      gamemaster: gm,
-      type_effectiveness: {
-        let types = gm
-          .item_templates
-          .iter()
-          .filter_map(|i| match &i.entry {
-            Some(gm::GameMasterEntry::TypeEffectiveness(t)) => Some(t),
-            _ => None,
-          })
-          .collect::<Vec<_>>();
+    let type_effectiveness = {
+      let types = gm
+        .item_templates
+        .iter()
+        .filter_map(|i| match &i.entry {
+          Some(gm::GameMasterEntry::TypeEffectiveness(t)) => Some(t),
+          _ => None,
+        })
+        .collect::<Vec<_>>();
 
-        types
-          .iter()
-          .map(|t| {
-            (
-              Type::try_from(t.attack_type.as_str()).unwrap(),
-              t.effectiveness
-                .iter()
-                .take(TYPE_ORDERING.len())
-                .enumerate()
-                .map(|(idx, v)| (TYPE_ORDERING[idx], *v))
-                .collect(),
-            )
-          })
-          .collect()
-      },
-      fast_moves: fast_moves,
-      charged_moves: charged_moves,
+      types
+        .iter()
+        .map(|t| {
+          (
+            Type::try_from(t.attack_type.as_str()).unwrap(),
+            t.effectiveness
+              .iter()
+              .take(TYPE_ORDERING.len())
+              .enumerate()
+              .map(|(idx, v)| (TYPE_ORDERING[idx], *v))
+              .collect(),
+          )
+        })
+        .collect()
+    };
+
+    Ok(Mechanics {
+      // gamemaster: gm,
+      type_effectiveness,
+      pokemon: Mechanics::pokemon(&gm, &fast_moves, &charged_moves, &type_effectiveness)?,
+      fast_moves,
+      charged_moves,
       cp_multiplier: {
         let pl = gm.item_templates.iter().find(|i| match &i.entry {
           Some(gm::GameMasterEntry::PlayerLevel(_)) => true,
@@ -132,9 +135,13 @@ impl<'a> Mechanics<'a> {
   // Cache this somehow, of course; it is also immutable and derived from the GM
   // like the rest of the Mechanics struct
   //
-  pub fn pokemon(&self) -> Result<Vec<Pokemon>, Error> {
-    self
-      .gamemaster
+  fn pokemon(
+    gamemaster: &gm::GameMaster, 
+    fast_moves: &HashMap<String, FastMove>,
+    charged_moves: &HashMap<String, ChargedMove>,
+    type_effectiveness: &HashMap<Type, HashMap<Type, f64>>,
+  ) -> Result<Vec<Pokemon>, Error> {
+    gamemaster
       .item_templates
       .iter()
       .filter_map(|i| match &i.entry {
@@ -151,25 +158,22 @@ impl<'a> Mechanics<'a> {
             _ => None,
           };
           Some(Ok(Pokemon {
-            id: &ps.pokemon_id,
-            mechanics: &self,
-            fast_moves: self
-              .fast_moves
+            id: ps.pokemon_id,
+            fast_moves: fast_moves
               .iter()
               .filter_map(|(&i, v)| {
-                if ps.quick_moves.iter().any(|x| x == i) {
-                  Some(v)
+                if ps.quick_moves.iter().any(|&x| x == i) {
+                  Some(v.clone())
                 } else {
                   None
                 }
               })
               .collect(),
-            charged_moves: self
-              .charged_moves
+            charged_moves: charged_moves
               .iter()
               .filter_map(|(&i, v)| {
-                if ps.cinematic_moves.iter().any(|x| x == i) {
-                  Some(v)
+                if ps.cinematic_moves.iter().any(|&x| x == i) {
+                  Some(v.clone())
                 } else {
                   None
                 }
@@ -179,8 +183,8 @@ impl<'a> Mechanics<'a> {
             type2: type2,
             stats: ps.stats,
             type_effectiveness: match type2 {
-              Some(t) => self.dual_type_effectiveness(type1, t),
-              None => self.type_effectiveness[&type1].clone(), // PERFORMANCE I could use Cow but prob it's not really worth it
+              Some(t) => Mechanics::dual_type_effectiveness(type_effectiveness, type1, t),
+              None => type_effectiveness[&type1].clone(),
             },
           }))
         }
@@ -207,13 +211,13 @@ impl<'a> Mechanics<'a> {
     self.cp_multiplier[l as usize]
   }
 
-  pub fn dual_type_effectiveness(&self, a: Type, b: Type) -> HashMap<Type, f64> {
+  pub fn dual_type_effectiveness(type_effectiveness: &HashMap<Type, HashMap<Type, f64>>, a: Type, b: Type) -> HashMap<Type, f64> {
     TYPE_ORDERING
       .iter()
       .map(|t| {
         (
           *t,
-          self.type_effectiveness[t][&a] * self.type_effectiveness[t][&b],
+          type_effectiveness[t][&a] * type_effectiveness[t][&b],
         )
       })
       .collect::<HashMap<_, _>>()

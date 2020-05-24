@@ -19,8 +19,8 @@ pub enum MoveStateMachine {
 }
 
 // TODO: consider also the other pokemon
-impl<'a> StateMachine<(&'a PokemonState<'a>, &'a PokemonState<'a>)> for MoveStateMachine {
-  fn transition(&self, env: (&'a PokemonState<'a>, &'a PokemonState<'a>)) -> Self {
+impl<'a> StateMachine<(&'a PokemonState, &'a PokemonState)> for MoveStateMachine {
+  fn transition(&self, env: (&'a PokemonState, &'a PokemonState)) -> Self {
     let (pok, opponent) = env;
     match self {
       MoveStateMachine::Neutral => {
@@ -69,19 +69,19 @@ impl Shields {
   }
 }
 
-pub struct PokemonState<'a> {
-  pokemon: &'a PokemonInstance<'a>,
+pub struct PokemonState {
+  pokemon: PokemonInstance,
   health: i32,
   energy: i32,
   shields: Shields,
   state: MoveStateMachine,
 }
 
-impl<'a> PokemonState<'a> {
+impl PokemonState {
   fn new(
-    pokemon  : &'a PokemonInstance<'a>,
+    pokemon  : PokemonInstance,
     shields  : Shields
-  ) -> PokemonState<'a> {
+  ) -> PokemonState {
     PokemonState {
       pokemon,
       shields,
@@ -99,9 +99,9 @@ impl<'a> PokemonState<'a> {
   }
 
   // TODO returns "is other dead?", use a dedicated type for clarity
-  fn register_fast(&mut self, opponent: &mut PokemonState<'a>) -> bool { 
+  fn register_fast(&mut self, opponent: &mut PokemonState) -> bool { 
     let health = opponent.health as i32;
-    let damage = self.pokemon.fast_move.calculate(self.pokemon, opponent.pokemon);
+    let damage = self.pokemon.fast_move.calculate(&self.pokemon, &opponent.pokemon);
     let energy = self.pokemon.fast_move.energy;
 
     opponent.health = i32::max(0, health - damage) as _;
@@ -110,14 +110,14 @@ impl<'a> PokemonState<'a> {
     opponent.health == 0
   }
 
-  fn register_charged(&mut self, choice: ChargedChoice, opponent: &mut PokemonState<'a>) -> bool {
+  fn register_charged(&mut self, choice: ChargedChoice, opponent: &mut PokemonState) -> bool {
     let charged_move = match choice {
       ChargedChoice::Main => self.pokemon.charged_move1,
       ChargedChoice::Other => self.pokemon.charged_move2,
     };
 
     let health = opponent.health as i32;
-    let damage = charged_move.calculate(self.pokemon, opponent.pokemon);
+    let damage = charged_move.calculate(&self.pokemon, &opponent.pokemon);
     let energy_expenditure = charged_move.energy as i32;
     let current_energy = self.energy as i32;
 
@@ -127,16 +127,16 @@ impl<'a> PokemonState<'a> {
     opponent.health == 0
   }
 
-  fn would_charged_kill(&self, choice: ChargedChoice, opponent: &PokemonState<'a>) -> bool {
+  fn would_charged_kill(&self, choice: ChargedChoice, opponent: &PokemonState) -> bool {
     let charged_move = match choice {
       ChargedChoice::Main => self.pokemon.charged_move1,
       ChargedChoice::Other => self.pokemon.charged_move2,
     };
-    let damage = charged_move.calculate(self.pokemon, opponent.pokemon);
+    let damage = charged_move.calculate(&self.pokemon, &opponent.pokemon);
     damage > opponent.health
   }
 
-  fn transition(&mut self, other: &PokemonState<'a>) -> MoveStateMachine {
+  fn transition(&mut self, other: &PokemonState) -> MoveStateMachine {
     self.state = self.state.transition((self, other));
     self.state
   }
@@ -150,19 +150,19 @@ pub enum BattleOutcome {
   Draw,
 }
 
-pub struct Battle<'a> {
-  pokemon1: PokemonState<'a>,
-  pokemon2: PokemonState<'a>,
+pub struct Battle {
+  pokemon1: PokemonState,
+  pokemon2: PokemonState,
   turn: u16
 }
 
-impl<'a> Battle<'a> {
+impl Battle {
   pub fn new(
-    pokemon1: &'a PokemonInstance<'a>,
-    pokemon2: &'a PokemonInstance<'a>,
+    pokemon1: PokemonInstance,
+    pokemon2: PokemonInstance,
     shields1: Shields,
     shields2: Shields,
-  ) -> Battle<'a> {
+  ) -> Battle {
     Battle {
       pokemon1: PokemonState::new(pokemon1, shields1),
       pokemon2: PokemonState::new(pokemon2, shields2),

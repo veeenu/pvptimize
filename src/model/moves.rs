@@ -11,32 +11,32 @@ use std::convert::TryFrom;
 
 // Floor(0.5 ∗ Power ∗ Atk / Def ∗ STAB ∗ Effective) + 1
 // https://pokemongohub.net/post/questions-and-answers/move-damage-output-actually-calculated/
-pub trait Damage<'a> {
-  fn calculate(&self, source: &PokemonInstance<'a>, target: &PokemonInstance<'a>) -> i32;
+pub trait Damage {
+  fn calculate(&self, source: &PokemonInstance, target: &PokemonInstance) -> i32;
   fn type_(&self) -> &Type;
-  fn stab(&self, p: &Pokemon<'a>) -> bool;
+  fn stab(&self, p: &Pokemon) -> bool;
 }
 
 // ================
 // === FastMove ===
 // ================
 
-#[derive(Debug)]
-pub struct FastMove<'a> {
-  pub uid: &'a str,
+#[derive(Debug, Clone)]
+pub struct FastMove {
+  pub uid: String,
   pub type_: Type,
   pub power: f64,
   pub turns: i32,
   pub energy: i32,
 }
 
-impl<'a> TryFrom<&'a gm::PvPMove> for FastMove<'a> {
+impl TryFrom<&gm::PvPMove> for FastMove {
   type Error = Error;
 
-  fn try_from(s: &'a gm::PvPMove) -> Result<Self, Self::Error> {
+  fn try_from(s: &gm::PvPMove) -> Result<Self, Self::Error> {
     if s.energy_delta >= 0 {
       Ok(FastMove {
-        uid: s.unique_id.as_str(),
+        uid: s.unique_id.into(),
         type_: Type::try_from(s.type_.as_str()).map_err(|e| {
           Error::ConversionError(format!("Can't convert gm::FastMove into FastMove: {:?}", e))
         })?,
@@ -53,9 +53,17 @@ impl<'a> TryFrom<&'a gm::PvPMove> for FastMove<'a> {
   }
 }
 
+impl TryFrom<gm::PvPMove> for FastMove {
+  type Error = Error;
+
+  fn try_from(s: gm::PvPMove) -> Result<Self, Self::Error> {
+    FastMove::try_from(&s)
+  }
+}
+
 // Floor(0.5 ∗ Power ∗ Atk / Def ∗ STAB ∗ Effective) + 1
-impl<'a> Damage<'a> for FastMove<'a> {
-  fn stab(&self, p: &Pokemon<'a>) -> bool {
+impl Damage for FastMove {
+  fn stab(&self, p: &Pokemon) -> bool {
     p.type1 == self.type_ || (p.type2.is_some() && p.type2.unwrap() == self.type_)
   }
 
@@ -63,7 +71,7 @@ impl<'a> Damage<'a> for FastMove<'a> {
     &self.type_
   }
 
-  fn calculate(&self, source: &PokemonInstance<'a>, target: &PokemonInstance<'a>) -> i32 {
+  fn calculate(&self, source: &PokemonInstance, target: &PokemonInstance) -> i32 {
     let stab = if source.stab(self) { 1.2 } else { 1.0 };
     let effectiveness = target.type_effectiveness(self);
     (
@@ -83,21 +91,21 @@ impl<'a> Damage<'a> for FastMove<'a> {
 // === ChargedMove ===
 // ===================
 
-#[derive(Debug)]
-pub struct ChargedMove<'a> {
-  pub uid: &'a str,
+#[derive(Debug, Clone)]
+pub struct ChargedMove {
+  pub uid: String,
   pub type_: Type,
   pub power: f64,
   pub energy: i16,
 }
 
-impl<'a> TryFrom<&'a gm::PvPMove> for ChargedMove<'a> {
+impl TryFrom<&gm::PvPMove> for ChargedMove {
   type Error = Error;
 
-  fn try_from(s: &'a gm::PvPMove) -> Result<Self, Self::Error> {
+  fn try_from(s: &gm::PvPMove) -> Result<Self, Self::Error> {
     if s.energy_delta < 0 {
       Ok(ChargedMove {
-        uid: s.unique_id.as_str(),
+        uid: s.unique_id.into(),
         type_: Type::try_from(s.type_.as_str()).map_err(|e| {
           Error::ConversionError(format!(
             "Can't convert gm::ChargedMove into ChargedMove: {:?}",
@@ -116,8 +124,17 @@ impl<'a> TryFrom<&'a gm::PvPMove> for ChargedMove<'a> {
   }
 }
 
-impl<'a> Damage<'a> for ChargedMove<'a> {
-  fn stab(&self, p: &Pokemon<'a>) -> bool {
+impl TryFrom<gm::PvPMove> for ChargedMove {
+  type Error = Error;
+
+  fn try_from(s: gm::PvPMove) -> Result<Self, Self::Error> {
+    ChargedMove::try_from(&s)
+  }
+}
+
+
+impl Damage for ChargedMove {
+  fn stab(&self, p: &Pokemon) -> bool {
     p.type1 == self.type_ || (p.type2.is_some() && p.type2.unwrap() == self.type_)
   }
 
@@ -125,7 +142,7 @@ impl<'a> Damage<'a> for ChargedMove<'a> {
     &self.type_
   }
 
-  fn calculate(&self, source: &PokemonInstance<'a>, target: &PokemonInstance<'a>) -> i32 {
+  fn calculate(&self, source: &PokemonInstance, target: &PokemonInstance) -> i32 {
     let stab = if source.stab(self) { 1.2 } else { 1.0 };
     let effectiveness = target.type_effectiveness(self);
     (
