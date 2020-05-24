@@ -22,8 +22,16 @@ pub struct Mechanics {
   pub type_effectiveness: HashMap<Type, HashMap<Type, f64>>,
 }
 
+impl TryFrom<gm::GameMaster> for Mechanics {
+  type Error = Error;
+
+  fn try_from(gm: gm::GameMaster) -> Result<Mechanics, Error> {
+    Mechanics::new(gm)
+  }
+}
+
 impl Mechanics {
-  pub fn new(gm: gm::GameMaster) -> Result<Mechanics, Error> {
+  fn new(gm: gm::GameMaster) -> Result<Mechanics, Error> {
     let fast_moves = {
       gm.item_templates
         .iter()
@@ -84,10 +92,10 @@ impl Mechanics {
 
     Ok(Mechanics {
       // gamemaster: gm,
-      type_effectiveness,
-      pokemon: Mechanics::pokemon(&gm, &fast_moves, &charged_moves, &type_effectiveness)?,
+      pokemon: Mechanics::build_pokemons(&gm, &fast_moves, &charged_moves, &type_effectiveness)?,
       fast_moves,
       charged_moves,
+      type_effectiveness,
       cp_multiplier: {
         let pl = gm.item_templates.iter().find(|i| match &i.entry {
           Some(gm::GameMasterEntry::PlayerLevel(_)) => true,
@@ -130,12 +138,60 @@ impl Mechanics {
     })
   }
 
+  pub fn pokemon(&self, id: &str) -> Option<Pokemon> {
+    self
+      .pokemon
+      .iter()
+      .find(|i| i.id == id)
+      .map(Pokemon::clone)
+  }
+
+  pub fn pokemon_instance(
+    &self, 
+    pokemon_id: &str,
+    level: Level,
+    atk_iv: u16,
+    def_iv: u16,
+    sta_iv: u16,
+    fast_move: &str,
+    charged_move1: &str,
+    charged_move2: Option<&str>
+  ) -> Result<PokemonInstance, Error> {
+    if let Some(pok) = self.pokemon(pokemon_id) {
+      PokemonInstance::new(
+        pok,
+        level,
+        atk_iv, def_iv, sta_iv,
+        fast_move, charged_move1, charged_move2,
+        self
+      )
+    } else {
+      Err(Error::BoundsError(format!("Could not find pokemon {}", pokemon_id)))
+    }
+  }
+
+  pub fn fast_move(&self, id: &str) -> Option<FastMove> {
+    self
+      .fast_moves
+      .iter()
+      .find(|(k, _)| k == &id)
+      .map(|(_, v)| FastMove::clone(v))
+  }
+
+  pub fn charged_move(&self, id: &str) -> Option<ChargedMove> {
+    self
+      .charged_moves
+      .iter()
+      .find(|(k, _)| k == &id)
+      .map(|(_, v)| ChargedMove::clone(v))
+  }
+
   //
   // TODO
   // Cache this somehow, of course; it is also immutable and derived from the GM
   // like the rest of the Mechanics struct
   //
-  fn pokemon(
+  fn build_pokemons(
     gamemaster: &gm::GameMaster, 
     fast_moves: &HashMap<String, FastMove>,
     charged_moves: &HashMap<String, ChargedMove>,
@@ -158,11 +214,11 @@ impl Mechanics {
             _ => None,
           };
           Some(Ok(Pokemon {
-            id: ps.pokemon_id,
+            id: ps.pokemon_id.clone(),
             fast_moves: fast_moves
               .iter()
-              .filter_map(|(&i, v)| {
-                if ps.quick_moves.iter().any(|&x| x == i) {
+              .filter_map(|(i, v)| {
+                if ps.quick_moves.iter().any(|x| x == i) {
                   Some(v.clone())
                 } else {
                   None
@@ -171,8 +227,8 @@ impl Mechanics {
               .collect(),
             charged_moves: charged_moves
               .iter()
-              .filter_map(|(&i, v)| {
-                if ps.cinematic_moves.iter().any(|&x| x == i) {
+              .filter_map(|(i, v)| {
+                if ps.cinematic_moves.iter().any(|x| x == i) {
                   Some(v.clone())
                 } else {
                   None
@@ -183,7 +239,7 @@ impl Mechanics {
             type2: type2,
             stats: ps.stats,
             type_effectiveness: match type2 {
-              Some(t) => Mechanics::dual_type_effectiveness(type_effectiveness, type1, t),
+              Some(t) => Mechanics::dual_type_effectiveness_internal(type_effectiveness, type1, t),
               None => type_effectiveness[&type1].clone(),
             },
           }))
@@ -211,7 +267,11 @@ impl Mechanics {
     self.cp_multiplier[l as usize]
   }
 
-  pub fn dual_type_effectiveness(type_effectiveness: &HashMap<Type, HashMap<Type, f64>>, a: Type, b: Type) -> HashMap<Type, f64> {
+  pub fn dual_type_effectiveness(&self, a: Type, b: Type) -> HashMap<Type, f64> {
+    Mechanics::dual_type_effectiveness_internal(&self.type_effectiveness, a, b)
+  }
+
+  fn dual_type_effectiveness_internal(type_effectiveness: &HashMap<Type, HashMap<Type, f64>>, a: Type, b: Type) -> HashMap<Type, f64> {
     TYPE_ORDERING
       .iter()
       .map(|t| {

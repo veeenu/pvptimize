@@ -36,7 +36,7 @@ impl TryFrom<&gm::PvPMove> for FastMove {
   fn try_from(s: &gm::PvPMove) -> Result<Self, Self::Error> {
     if s.energy_delta >= 0 {
       Ok(FastMove {
-        uid: s.unique_id.into(),
+        uid: s.unique_id.clone(),
         type_: Type::try_from(s.type_.as_str()).map_err(|e| {
           Error::ConversionError(format!("Can't convert gm::FastMove into FastMove: {:?}", e))
         })?,
@@ -105,7 +105,7 @@ impl TryFrom<&gm::PvPMove> for ChargedMove {
   fn try_from(s: &gm::PvPMove) -> Result<Self, Self::Error> {
     if s.energy_delta < 0 {
       Ok(ChargedMove {
-        uid: s.unique_id.into(),
+        uid: s.unique_id.clone(),
         type_: Type::try_from(s.type_.as_str()).map_err(|e| {
           Error::ConversionError(format!(
             "Can't convert gm::ChargedMove into ChargedMove: {:?}",

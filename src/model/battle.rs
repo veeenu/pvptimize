@@ -1,6 +1,8 @@
 use crate::model::PokemonInstance;
 use crate::model::moves::Damage;
 
+use std::convert::TryFrom;
+
 pub trait StateMachine<D> {
   fn transition(self: &Self, env: D) -> Self;
 }
@@ -83,10 +85,10 @@ impl PokemonState {
     shields  : Shields
   ) -> PokemonState {
     PokemonState {
-      pokemon,
-      shields,
       health: pokemon.stamina() as _,
       energy: 0,
+      pokemon,
+      shields,
       state: MoveStateMachine::Neutral
     }
   }
@@ -112,8 +114,8 @@ impl PokemonState {
 
   fn register_charged(&mut self, choice: ChargedChoice, opponent: &mut PokemonState) -> bool {
     let charged_move = match choice {
-      ChargedChoice::Main => self.pokemon.charged_move1,
-      ChargedChoice::Other => self.pokemon.charged_move2,
+      ChargedChoice::Main => &self.pokemon.charged_move1,
+      ChargedChoice::Other => &self.pokemon.charged_move2,
     };
 
     let health = opponent.health as i32;
@@ -129,8 +131,8 @@ impl PokemonState {
 
   fn would_charged_kill(&self, choice: ChargedChoice, opponent: &PokemonState) -> bool {
     let charged_move = match choice {
-      ChargedChoice::Main => self.pokemon.charged_move1,
-      ChargedChoice::Other => self.pokemon.charged_move2,
+      ChargedChoice::Main => &self.pokemon.charged_move1,
+      ChargedChoice::Other => &self.pokemon.charged_move2,
     };
     let damage = charged_move.calculate(&self.pokemon, &opponent.pokemon);
     damage > opponent.health
@@ -253,22 +255,19 @@ mod tests {
     let gms = std::fs::read_to_string("data/gamemaster.json").unwrap();
     let gm = serde_json::from_str::<GameMaster>(&gms).unwrap();
 
-    let mech = Mechanics::new(&gm).unwrap();
-    let poks = mech.pokemon().unwrap();
+    let mech = Mechanics::try_from(gm).unwrap();
 
-    let victreebel = poks.iter().find(|i| i.id == "VICTREEBEL").unwrap();
-    let victreebel = PokemonInstance::new(
-      victreebel,
+    let victreebel = mech.pokemon_instance(
+      "VICTREEBEL",
       Level { level: 23, a_half: false },
       1, 15, 15,
       "RAZOR_LEAF_FAST",
       "LEAF_BLADE",
-      Some("ACID_SPRAY")
+      Some("ACID_SPRAY"),
     ).unwrap();
 
-    let whiscash = poks.iter().find(|i| i.id == "WHISCASH").unwrap();
-    let whiscash = PokemonInstance::new(
-      whiscash,
+    let whiscash = mech.pokemon_instance(
+      "WHISCASH",
       Level { level: 28, a_half: false },
       0, 14, 13,
       "MUD_SHOT_FAST",
@@ -276,7 +275,7 @@ mod tests {
       Some("MUD_BOMB"),
     ).unwrap();
 
-    let mut battle = Battle::new(&victreebel, &whiscash, Shields::Two, Shields::Two);
+    let mut battle = Battle::new(victreebel, whiscash, Shields::Two, Shields::Two);
 
     loop {
       match battle.turn() {
@@ -292,13 +291,10 @@ mod tests {
     let gms = std::fs::read_to_string("data/gamemaster.json").unwrap();
     let gm = serde_json::from_str::<GameMaster>(&gms).unwrap();
 
-    let mech = Mechanics::new(&gm).unwrap();
-    let poks = mech.pokemon().unwrap();
+    let mech = Mechanics::try_from(gm).unwrap();
 
-    let lucario_data = poks.iter().find(|i| i.id == "LUCARIO").unwrap();
-
-    let lucario_attacker = PokemonInstance::new(
-      lucario_data,
+    let lucario_attacker = mech.pokemon_instance(
+      "LUCARIO",
       Level { level: 21, a_half: false },
       15, 0, 0,
       "COUNTER_FAST",
@@ -306,8 +302,8 @@ mod tests {
       Some("SHADOW_BALL"),
     ).unwrap();
 
-    let lucario_defender = PokemonInstance::new(
-      lucario_data,
+    let lucario_defender = mech.pokemon_instance(
+      "LUCARIO",
       Level { level: 20, a_half: true },
       0, 15, 15,
       "COUNTER_FAST",
@@ -318,7 +314,7 @@ mod tests {
     assert_eq!(lucario_attacker.cp(), 1480);
     assert_eq!(lucario_defender.cp(), 1488);
 
-    let mut battle = Battle::new(&lucario_attacker, &lucario_defender, Shields::Two, Shields::Two);
+    let mut battle = Battle::new(lucario_attacker, lucario_defender, Shields::Two, Shields::Two);
 
     loop {
       match battle.turn() {
@@ -341,12 +337,10 @@ mod tests {
     let gms = std::fs::read_to_string("data/gamemaster.json").unwrap();
     let gm = serde_json::from_str::<GameMaster>(&gms).unwrap();
 
-    let mech = Mechanics::new(&gm).unwrap();
-    let poks = mech.pokemon().unwrap();
+    let mech = Mechanics::try_from(gm).unwrap();
 
-    let regi = poks.iter().find(|i| i.id == "REGISTEEL").unwrap();
-    let regi1 = PokemonInstance::new(
-      regi,
+    let regi1 = mech.pokemon_instance(
+      "REGISTEEL",
       Level { level: 22, a_half: true },
       15, 2, 5,
       "LOCK_ON_FAST",
@@ -354,8 +348,8 @@ mod tests {
       Some("FOCUS_BLAST")
     ).unwrap();
 
-    let regi2 = PokemonInstance::new(
-      regi,
+    let regi2 = mech.pokemon_instance(
+      "REGISTEEL",
       Level { level: 24, a_half: true },
       1, 12, 1,
       "LOCK_ON_FAST",
@@ -363,7 +357,7 @@ mod tests {
       Some("FOCUS_BLAST")
     ).unwrap();
 
-    let mut battle = Battle::new(&regi1, &regi2, Shields::Two, Shields::Two);
+    let mut battle = Battle::new(regi1, regi2, Shields::Two, Shields::Two);
 
     loop {
       match battle.turn() {

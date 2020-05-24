@@ -10,6 +10,7 @@ use crate::model::moves::*;
 // === Pokemon ===
 // ===============
 
+#[derive(Debug, Clone)]
 pub struct Pokemon {
   // pub mechanics: &'a Mechanics,
 
@@ -108,40 +109,47 @@ impl PokemonInstance {
     mechanics: &Mechanics,
   ) -> Result<PokemonInstance, Error> {
     let charged_move2 = charged_move2.unwrap_or(charged_move1);
+
+    let fast_move = match pok.fast_moves.iter().find(|i| i.uid == fast_move) {
+      Some(i) => i.clone(),
+      None => {
+        return Err(Error::ParseError(format!(
+          "Fast move {} not found for {}",
+          fast_move, pok.id
+        )))
+      }
+    };
+
+    let charged_move1 = match pok.charged_moves.iter().find(|i| i.uid == charged_move1) {
+      Some(i) => i.clone(),
+      None => {
+        return Err(Error::ParseError(format!(
+          "Charged move {} not found for {}",
+          charged_move1, pok.id
+        )))
+      }
+    };
+
+    let charged_move2 = match pok.charged_moves.iter().find(|&i| i.uid == charged_move2) {
+      Some(i) => i.clone(),
+      None => {
+        return Err(Error::ParseError(format!(
+          "Charged move {} not found for {}",
+          charged_move2, pok.id
+        )))
+      }
+    };
+
     Ok(PokemonInstance {
       pokemon: pok,
       atk_iv: atk_iv,
       def_iv: def_iv,
       sta_iv: sta_iv,
-      level: level,
       cpm: mechanics.cp_multiplier(&level),
-      fast_move: match pok.fast_moves.iter().find(|i| i.uid == fast_move) {
-        Some(i) => i.clone(),
-        None => {
-          return Err(Error::ParseError(format!(
-            "Fast move {} not found for {}",
-            fast_move, pok.id
-          )))
-        }
-      },
-      charged_move1: match pok.charged_moves.iter().find(|i| i.uid == charged_move1) {
-        Some(i) => i.clone(),
-        None => {
-          return Err(Error::ParseError(format!(
-            "Charged move {} not found for {}",
-            fast_move, pok.id
-          )))
-        }
-      },
-      charged_move2: match pok.charged_moves.iter().find(|&i| i.uid == charged_move2) {
-        Some(i) => i.clone(),
-        None => {
-          return Err(Error::ParseError(format!(
-            "Charged move {} not found for {}",
-            fast_move, pok.id
-          )))
-        }
-      },
+      level: level,
+      fast_move,
+      charged_move1,
+      charged_move2,
     })
   }
 }

@@ -111,8 +111,7 @@ mod tests {
     let gms = std::fs::read_to_string("data/gamemaster.json").unwrap();
     let gm = serde_json::from_str::<gm::GameMaster>(&gms).unwrap();
 
-    let mech = Mechanics::new(&gm).unwrap();
-    let poks = mech.pokemon().unwrap();
+    let mech = Mechanics::try_from(gm).unwrap();
 
     /*println!("{:?}", gm.item_templates.iter().find(|v| {
       if let Some(gm::GameMasterEntry::PvPMove(m)) = &v.entry {
@@ -122,15 +121,14 @@ mod tests {
       }
     }));
     println!("{:?}", mech.fast_moves.iter().find(|(&k, _)| k == "DRAGON_BREATH_FAST"));*/
+
     // Ensure Dragon Breath exists
     assert!(mech
-      .fast_moves
-      .iter()
-      .find(|(&k, _)| k == "DRAGON_BREATH_FAST")
+      .fast_move("DRAGON_BREATH_FAST")
       .is_some());
 
     // Altaria lv28 6/13/14
-    let altaria_pok = poks.iter().find(|i| i.id == "ALTARIA").unwrap();
+    let altaria_pok = mech.pokemon("ALTARIA").unwrap();
     let altaria = PokemonInstance::new(
       altaria_pok,
       Level {
@@ -143,10 +141,11 @@ mod tests {
       "DRAGON_BREATH_FAST",
       "DRAGON_PULSE",
       Some("SKY_ATTACK"),
+      &mech,
     )
     .unwrap();
 
-    let noctowl_pok = poks.iter().find(|i| i.id == "NOCTOWL").unwrap();
+    let noctowl_pok = mech.pokemon("NOCTOWL").unwrap();
     let noctowl = PokemonInstance::new(
       noctowl_pok,
       Level {
@@ -159,10 +158,11 @@ mod tests {
       "WING_ATTACK_FAST",
       "SKY_ATTACK",
       Some("PSYCHIC"),
+      &mech,
     )
     .unwrap();
 
-    let charizard_pok = poks.iter().find(|i| i.id == "CHARIZARD").unwrap();
+    let charizard_pok = mech.pokemon("CHARIZARD").unwrap();
     let charizard = PokemonInstance::new(
       charizard_pok,
       Level {
@@ -175,6 +175,7 @@ mod tests {
       "FIRE_SPIN_FAST",
       "FIRE_BLAST",
       Some("DRAGON_CLAW"),
+      &mech,
     )
     .unwrap();
 

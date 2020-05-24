@@ -2,6 +2,8 @@ use crate::model::{Type, TYPE_ORDERING};
 use serde;
 use serde::Deserialize;
 
+use std::convert::TryFrom;
+
 #[derive(Deserialize, Debug)]
 pub struct AvatarCustomization {
   enabled: Option<bool>,
@@ -139,7 +141,7 @@ mod test {
     let gms = std::fs::read_to_string("data/gamemaster.json").unwrap();
     let gm = serde_json::from_str::<GameMaster>(&gms).unwrap();
 
-    let mech = Mechanics::new(&gm).unwrap();
+    let mech = Mechanics::try_from(gm).unwrap();
     let steel_psychic = mech.dual_type_effectiveness(Type::Steel, Type::Psychic);
 
     assert!((steel_psychic[&Type::Poison] - 0.391).abs() < 10e-3);
