@@ -128,9 +128,8 @@ mod tests {
       .is_some());
 
     // Altaria lv28 6/13/14
-    let altaria_pok = mech.pokemon("ALTARIA").unwrap();
-    let altaria = PokemonInstance::new(
-      altaria_pok,
+    let altaria = mech.pokemon_instance(
+      "ALTARIA",
       Level {
         level: 28,
         a_half: false,
@@ -141,13 +140,11 @@ mod tests {
       "DRAGON_BREATH_FAST",
       "DRAGON_PULSE",
       Some("SKY_ATTACK"),
-      &mech,
     )
     .unwrap();
 
-    let noctowl_pok = mech.pokemon("NOCTOWL").unwrap();
-    let noctowl = PokemonInstance::new(
-      noctowl_pok,
+    let noctowl = mech.pokemon_instance(
+      "NOCTOWL",
       Level {
         level: 28,
         a_half: false,
@@ -158,13 +155,11 @@ mod tests {
       "WING_ATTACK_FAST",
       "SKY_ATTACK",
       Some("PSYCHIC"),
-      &mech,
     )
     .unwrap();
 
-    let charizard_pok = mech.pokemon("CHARIZARD").unwrap();
-    let charizard = PokemonInstance::new(
-      charizard_pok,
+    let charizard = mech.pokemon_instance(
+      "CHARIZARD",
       Level {
         level: 18,
         a_half: true,
@@ -175,7 +170,6 @@ mod tests {
       "FIRE_SPIN_FAST",
       "FIRE_BLAST",
       Some("DRAGON_CLAW"),
-      &mech,
     )
     .unwrap();
 

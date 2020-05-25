@@ -12,8 +12,6 @@ use crate::model::moves::*;
 
 #[derive(Debug, Clone)]
 pub struct Pokemon {
-  // pub mechanics: &'a Mechanics,
-
   pub id: String,
   pub stats: gm::Stats,
   pub type1: Type,
@@ -77,10 +75,6 @@ impl PokemonInstance {
     )
   }
 
-  /*pub fn cpm(&self) -> f64 {
-    self.pokemon.mechanics.cp_multiplier(&self.level)
-  }*/
-
   pub fn cp(&self) -> u32 {
     let a = (self.pokemon.stats.base_attack + self.atk_iv) as f64;
     let d = (self.pokemon.stats.base_defense + self.def_iv) as f64;
@@ -98,58 +92,26 @@ impl PokemonInstance {
   }
 
   pub fn new(
-    pok: Pokemon,
+    pokemon: Pokemon,
     level: Level,
+    cpm: f64,
     atk_iv: u16,
     def_iv: u16,
     sta_iv: u16,
-    fast_move: &str,
-    charged_move1: &str,
-    charged_move2: Option<&str>,
-    mechanics: &Mechanics,
-  ) -> Result<PokemonInstance, Error> {
-    let charged_move2 = charged_move2.unwrap_or(charged_move1);
-
-    let fast_move = match pok.fast_moves.iter().find(|i| i.uid == fast_move) {
-      Some(i) => i.clone(),
-      None => {
-        return Err(Error::ParseError(format!(
-          "Fast move {} not found for {}",
-          fast_move, pok.id
-        )))
-      }
-    };
-
-    let charged_move1 = match pok.charged_moves.iter().find(|i| i.uid == charged_move1) {
-      Some(i) => i.clone(),
-      None => {
-        return Err(Error::ParseError(format!(
-          "Charged move {} not found for {}",
-          charged_move1, pok.id
-        )))
-      }
-    };
-
-    let charged_move2 = match pok.charged_moves.iter().find(|&i| i.uid == charged_move2) {
-      Some(i) => i.clone(),
-      None => {
-        return Err(Error::ParseError(format!(
-          "Charged move {} not found for {}",
-          charged_move2, pok.id
-        )))
-      }
-    };
-
-    Ok(PokemonInstance {
-      pokemon: pok,
-      atk_iv: atk_iv,
-      def_iv: def_iv,
-      sta_iv: sta_iv,
-      cpm: mechanics.cp_multiplier(&level),
-      level: level,
+    fast_move: FastMove,
+    charged_move1: ChargedMove,
+    charged_move2: ChargedMove,
+  ) -> PokemonInstance {
+    PokemonInstance {
+      pokemon,
+      level,
+      cpm,
+      atk_iv,
+      def_iv,
+      sta_iv,
       fast_move,
       charged_move1,
       charged_move2,
-    })
+    }
   }
 }

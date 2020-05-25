@@ -158,13 +158,54 @@ impl Mechanics {
     charged_move2: Option<&str>
   ) -> Result<PokemonInstance, Error> {
     if let Some(pok) = self.pokemon(pokemon_id) {
-      PokemonInstance::new(
+      /*PokemonInstance::new(
         pok,
         level,
         atk_iv, def_iv, sta_iv,
         fast_move, charged_move1, charged_move2,
         self
-      )
+      )*/
+      let charged_move2 = charged_move2.unwrap_or(charged_move1);
+
+      let fast_move = match pok.fast_moves.iter().find(|i| i.uid == fast_move) {
+        Some(i) => i.clone(),
+        None => {
+          return Err(Error::ParseError(format!(
+            "Fast move {} not found for {}",
+            fast_move, pok.id
+          )))
+        }
+      };
+
+      let charged_move1 = match pok.charged_moves.iter().find(|i| i.uid == charged_move1) {
+        Some(i) => i.clone(),
+        None => {
+          return Err(Error::ParseError(format!(
+            "Charged move {} not found for {}",
+            charged_move1, pok.id
+          )))
+        }
+      };
+
+      let charged_move2 = match pok.charged_moves.iter().find(|&i| i.uid == charged_move2) {
+        Some(i) => i.clone(),
+        None => {
+          return Err(Error::ParseError(format!(
+            "Charged move {} not found for {}",
+            charged_move2, pok.id
+          )))
+        }
+      };
+
+      let cpm = self.cp_multiplier(&level);
+
+      Ok(PokemonInstance::new(
+        pok, level, cpm,
+        atk_iv, def_iv, sta_iv,
+        fast_move,
+        charged_move1,
+        charged_move2,
+      ))
     } else {
       Err(Error::BoundsError(format!("Could not find pokemon {}", pokemon_id)))
     }
