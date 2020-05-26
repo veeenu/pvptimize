@@ -39,7 +39,7 @@ impl From<&Level> for u16 {
 // =======================
 
 pub struct PokemonInstance {
-  pokemon: Pokemon,
+  pub pokemon: Pokemon,
 
   atk_iv: u16,
   def_iv: u16,

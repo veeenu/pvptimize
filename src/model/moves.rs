@@ -12,7 +12,7 @@ use std::convert::TryFrom;
 // Floor(0.5 ∗ Power ∗ Atk / Def ∗ STAB ∗ Effective) + 1
 // https://pokemongohub.net/post/questions-and-answers/move-damage-output-actually-calculated/
 pub trait Damage {
-  fn calculate(&self, source: &PokemonInstance, target: &PokemonInstance) -> i32;
+  fn calculate(&self, source: &PokemonInstance, target: &PokemonInstance) -> i16;
   fn type_(&self) -> &Type;
   fn stab(&self, p: &Pokemon) -> bool;
 }
@@ -27,7 +27,7 @@ pub struct FastMove {
   pub type_: Type,
   pub power: f64,
   pub turns: i32,
-  pub energy: i32,
+  pub energy: i16,
 }
 
 impl TryFrom<&gm::PvPMove> for FastMove {
@@ -42,7 +42,7 @@ impl TryFrom<&gm::PvPMove> for FastMove {
         })?,
         power: s.power,
         turns: s.duration_turns,
-        energy: s.energy_delta,
+        energy: s.energy_delta as _,
       })
     } else {
       Err(Error::ConversionError(format!(
@@ -71,7 +71,7 @@ impl Damage for FastMove {
     &self.type_
   }
 
-  fn calculate(&self, source: &PokemonInstance, target: &PokemonInstance) -> i32 {
+  fn calculate(&self, source: &PokemonInstance, target: &PokemonInstance) -> i16 {
     let stab = if source.stab(self) { 1.2 } else { 1.0 };
     let effectiveness = target.type_effectiveness(self);
     (
@@ -142,7 +142,7 @@ impl Damage for ChargedMove {
     &self.type_
   }
 
-  fn calculate(&self, source: &PokemonInstance, target: &PokemonInstance) -> i32 {
+  fn calculate(&self, source: &PokemonInstance, target: &PokemonInstance) -> i16 {
     let stab = if source.stab(self) { 1.2 } else { 1.0 };
     let effectiveness = target.type_effectiveness(self);
     (

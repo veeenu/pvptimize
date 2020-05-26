@@ -324,3 +324,39 @@ impl Mechanics {
       .collect::<HashMap<_, _>>()
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::gamemaster::*;
+
+  #[test]
+  fn test_type_effectiveness() {
+    let gms = std::fs::read_to_string("data/gamemaster.json").unwrap();
+    let gm = serde_json::from_str::<GameMaster>(&gms).unwrap();
+    let mech = Mechanics::try_from(gm).unwrap();
+
+    let regi = mech.pokemon_instance(
+      "REGISTEEL",
+      Level { level: 22, a_half: true },
+      15, 2, 5,
+      "LOCK_ON_FAST",
+      "FOCUS_BLAST",
+      Some("FLASH_CANNON")
+    ).unwrap();
+
+    let machamp = mech.pokemon_instance(
+      "MACHAMP",
+      Level { level: 22, a_half: true },
+      15, 2, 5,
+      "COUNTER_FAST",
+      "DYNAMIC_PUNCH",
+      None
+    ).unwrap();
+
+    // TODO transpose effectiveness matrix, these all fail
+    assert!(machamp.type_effectiveness(&regi.charged_move2) == 1.);
+    assert!(regi.type_effectiveness(&regi.fast_move) < 1.);
+    assert!(regi.type_effectiveness(&regi.charged_move1) > 1.);
+  }
+}
