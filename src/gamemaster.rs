@@ -1,8 +1,5 @@
-use crate::model::{Type, TYPE_ORDERING};
 use serde;
 use serde::Deserialize;
-
-use std::convert::TryFrom;
 
 #[derive(Deserialize, Debug)]
 pub struct AvatarCustomization {
@@ -134,7 +131,8 @@ pub struct GameMaster {
 mod test {
 
   use super::*;
-  use crate::model::Mechanics;
+  use crate::model::{Mechanics, Type, TYPE_ORDERING};
+  use std::convert::TryFrom;
 
   #[test]
   fn test() {
@@ -142,7 +140,7 @@ mod test {
     let gm = serde_json::from_str::<GameMaster>(&gms).unwrap();
 
     let mech = Mechanics::try_from(gm).unwrap();
-    let steel_psychic = mech.dual_type_effectiveness(Type::Steel, Type::Psychic);
+    let steel_psychic = mech.defender_dual_type_effectiveness(Type::Steel, Type::Psychic);
 
     assert!((steel_psychic[&Type::Poison] - 0.391).abs() < 10e-3);
     assert!((steel_psychic[&Type::Psychic] - 0.391).abs() < 10e-3);

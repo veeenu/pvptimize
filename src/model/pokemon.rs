@@ -1,9 +1,9 @@
 use std::collections::HashMap;
+use std::cmp::{PartialEq, Eq, PartialOrd, Ord, Ordering};
+use std::ops::{Add, Sub};
 
-use crate::error::*;
 use crate::gamemaster as gm;
 use crate::model::Type;
-use crate::model::mechanics::*;
 use crate::model::moves::*;
 
 // ===============
@@ -23,6 +23,7 @@ pub struct Pokemon {
 
 // === Level ===
 
+#[derive(PartialEq, Eq, PartialOrd, Copy, Clone, Debug)]
 pub struct Level {
   pub level: u16,
   pub a_half: bool,
@@ -32,6 +33,77 @@ impl From<&Level> for u16 {
   fn from(l: &Level) -> u16 {
     (l.level - 1) * 2 + (if l.a_half { 1 } else { 0 })
   }
+}
+
+impl Add<usize> for Level {
+  type Output = Level;
+
+  fn add(self, rhs: usize) -> Self::Output {
+    let mut lvl = self;
+    for _ in 0..rhs {
+      lvl = lvl.next();
+    }
+    lvl
+  }
+}
+
+impl Sub<usize> for Level {
+  type Output = Level;
+
+  fn sub(self, rhs: usize) -> Self::Output {
+    let mut lvl = self;
+    for _ in 0..rhs {
+      lvl = lvl.prev();
+    }
+    lvl
+  }
+}
+
+impl Ord for Level {
+  fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    if self.level > other.level {
+      Ordering::Greater
+    } else if self.level < other.level {
+      Ordering::Less
+    } else {
+      if self.a_half && !other.a_half {
+        Ordering::Greater
+      } else if !self.a_half & other.a_half {
+        Ordering::Less
+      } else {
+        Ordering::Equal
+      }
+    }
+  }
+}
+
+impl Level {
+  pub fn next(self) -> Level {
+    if self.a_half {
+      Level { 
+        level: self.level + 1,
+        a_half: false
+      }
+    } else {
+      Level {
+        level: self.level,
+        a_half: true
+      }
+    }
+  }
+
+  pub fn prev(self) -> Level {
+    if self.a_half {
+      Level { level: self.level, a_half: false }
+    } else {
+      if self.level > 1 {
+        Level { level: self.level - 1, a_half: true }
+      } else {
+        Level { level: 1, a_half: false }
+      }
+    }
+  }
+
 }
 
 // =======================
@@ -81,6 +153,13 @@ impl PokemonInstance {
     let s = (self.pokemon.stats.base_stamina + self.sta_iv) as f64;
     let cpm = self.cpm;
     f64::floor(a * d.sqrt() * s.sqrt() * cpm * cpm / 10.) as u32
+  }
+
+  pub fn stat_product(&self) -> f64 {
+    let a = self.cpm * (self.pokemon.stats.base_attack + self.atk_iv) as f64;
+    let d = self.cpm * (self.pokemon.stats.base_defense + self.def_iv) as f64;
+    let s = self.cpm * (self.pokemon.stats.base_stamina + self.sta_iv) as f64;
+    a * d * s
   }
 
   pub fn stab<M: Damage>(&self, move_: &M) -> bool {

@@ -1,16 +1,10 @@
-#[macro_use]
-extern crate serde;
-#[macro_use]
-extern crate serde_json;
-
-use std::collections::HashMap;
 use std::convert::TryFrom;
-use std::env;
 use std::fs;
 
 mod error;
 mod gamemaster;
 mod model;
+mod ranker;
 
 #[derive(Debug)]
 enum Error {

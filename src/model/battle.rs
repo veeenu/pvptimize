@@ -1,14 +1,12 @@
 use crate::model::PokemonInstance;
 use crate::model::moves::Damage;
 
-use std::convert::TryFrom;
-
 pub trait StateMachine<D> {
   fn transition(self: &Self, env: D) -> Self;
 }
 
 #[derive(Debug, Copy, Clone)]
-enum ChargedChoice {
+pub enum ChargedChoice {
   Main, Other
 }
 
@@ -27,7 +25,7 @@ impl<'a> StateMachine<(&TurnState<'a>, &TurnState<'a>)> for MoveStateMachine {
     match self {
       MoveStateMachine::Neutral => {
         // TODO logic to implement in this branch:
-        // - Shield bait logic:
+        // x Shield bait logic:
         //   if energy >= best move energy cost:
         //     if best move energy cost > other move energy cost:
         //       if opponent has shields:
@@ -39,6 +37,8 @@ impl<'a> StateMachine<(&TurnState<'a>, &TurnState<'a>)> for MoveStateMachine {
         //   else:
         //     do fast move
         // - Fast move priority: if fast move kills opponent, choose it first
+        // - would_charged_kill: if worse but less-energy-costly charged move would
+        //   kill the opponent, use it as soon as there's enough energy
         let dpe_main: f64 =
           attacker.instance.charged_move1.calculate(attacker.instance, defender.instance) as f64 /
           -attacker.instance.charged_move1.energy as f64;
@@ -46,6 +46,7 @@ impl<'a> StateMachine<(&TurnState<'a>, &TurnState<'a>)> for MoveStateMachine {
           attacker.instance.charged_move2.calculate(attacker.instance, defender.instance) as f64 /
           -attacker.instance.charged_move2.energy as f64;
 
+        // Compute the best charged move
         let (best_move, other_move) = if dpe_main > dpe_other {
           (
             (&attacker.instance.charged_move1, ChargedChoice::Main),
@@ -67,20 +68,6 @@ impl<'a> StateMachine<(&TurnState<'a>, &TurnState<'a>)> for MoveStateMachine {
         } else {
           MoveStateMachine::RegisterFast
         }
-
-        /*if (attacker.state.energy + attacker.instance.charged_move2.energy) >= 0 &&
-           (
-             (attacker.would_charged_kill(ChargedChoice::Other, defender) && defender.state.shields == Shields::None) ||
-             // defender.state.shields != Shields::None || // Shield baiting
-             false // TODO "The opponent's next action would result in a KO"
-           )
-        {
-          MoveStateMachine::RegisterCharged(ChargedChoice::Other)
-        } else if (attacker.state.energy + attacker.instance.charged_move1.energy) >= 0 {
-          MoveStateMachine::RegisterCharged(ChargedChoice::Main)
-        } else {
-          MoveStateMachine::Idle(attacker.instance.fast_move.turns).transition(env)
-        }*/
       },
       MoveStateMachine::Idle(0) => MoveStateMachine::RegisterFast,
       MoveStateMachine::Idle(i) => MoveStateMachine::Idle(i - 1),
@@ -167,7 +154,6 @@ impl<'a> TurnState<'a> {
     }
   }
   
-  // TODO returns "is other dead?", use a dedicated type for clarity
   fn register_fast(&mut self, opponent: &TurnState<'a>) -> i16 { 
     let damage = self.instance.fast_move.calculate(&self.instance, &opponent.instance);
     let energy = self.instance.fast_move.energy;
@@ -412,10 +398,11 @@ impl<'a> Iterator for Battle {
 #[cfg(test)]
 mod tests {
   use crate::model::pokemon::Level;
-  use crate::error::*;
   use crate::gamemaster::*;
   use crate::model::mechanics::*;
   use super::*;
+
+  use std::convert::TryFrom;
 
   #[test]
   fn test_victreebel_vs_whiscash() {

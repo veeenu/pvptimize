@@ -5,7 +5,7 @@ use crate::model::moves::*;
 use crate::model::pokemon::*;
 
 use std::collections::HashMap;
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryFrom;
 
 // =================
 // === Mechanics ===
@@ -280,8 +280,10 @@ impl Mechanics {
             type2: type2,
             stats: ps.stats,
             type_effectiveness: match type2 {
-              Some(t) => Mechanics::dual_type_effectiveness_internal(type_effectiveness, type1, t),
-              None => type_effectiveness[&type1].clone(),
+              Some(t) => Mechanics::defender_dual_type_effectiveness_internal(type_effectiveness, type1, t),
+              None => Mechanics::defender_type_effectiveness_internal(type_effectiveness, type1)
+              //Some(t) => Mechanics::dual_type_effectiveness_internal(type_effectiveness, type1, t),
+              // None => type_effectiveness[&type1].clone(),
             },
           }))
         }
@@ -308,11 +310,27 @@ impl Mechanics {
     self.cp_multiplier[l as usize]
   }
 
-  pub fn dual_type_effectiveness(&self, a: Type, b: Type) -> HashMap<Type, f64> {
-    Mechanics::dual_type_effectiveness_internal(&self.type_effectiveness, a, b)
+  pub fn defender_type_effectiveness(&self, a: Type) -> HashMap<Type, f64> {
+    Mechanics::defender_type_effectiveness_internal(&self.type_effectiveness, a)
   }
 
-  fn dual_type_effectiveness_internal(type_effectiveness: &HashMap<Type, HashMap<Type, f64>>, a: Type, b: Type) -> HashMap<Type, f64> {
+  fn defender_type_effectiveness_internal(type_effectiveness: &HashMap<Type, HashMap<Type, f64>>, a: Type) -> HashMap<Type, f64> {
+    TYPE_ORDERING
+      .iter()
+      .map(|t| {
+        (
+          *t,
+          type_effectiveness[t][&a]
+        )
+      })
+      .collect::<HashMap<_, _>>()
+  }
+
+  pub fn defender_dual_type_effectiveness(&self, a: Type, b: Type) -> HashMap<Type, f64> {
+    Mechanics::defender_dual_type_effectiveness_internal(&self.type_effectiveness, a, b)
+  }
+
+  fn defender_dual_type_effectiveness_internal(type_effectiveness: &HashMap<Type, HashMap<Type, f64>>, a: Type, b: Type) -> HashMap<Type, f64> {
     TYPE_ORDERING
       .iter()
       .map(|t| {

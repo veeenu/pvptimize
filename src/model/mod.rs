@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::convert::TryFrom;
 
 mod battle;
@@ -7,13 +6,11 @@ mod moves;
 mod pokemon;
 
 use crate::error::*;
-use crate::gamemaster as gm;
-use battle::*;
-use mechanics::*;
-use moves::*;
 use pokemon::*;
 
 pub use mechanics::Mechanics;
+pub use battle::Battle;
+pub use pokemon::{PokemonInstance, Level};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum Type {
@@ -90,6 +87,8 @@ mod tests {
 
   use super::*;
 
+  use crate::gamemaster::GameMaster;
+
   #[test]
   fn test_level_conversion() {
     let l: u16 = (&Level {
@@ -109,7 +108,7 @@ mod tests {
   #[test]
   fn test_cp_formula() {
     let gms = std::fs::read_to_string("data/gamemaster.json").unwrap();
-    let gm = serde_json::from_str::<gm::GameMaster>(&gms).unwrap();
+    let gm = serde_json::from_str::<GameMaster>(&gms).unwrap();
 
     let mech = Mechanics::try_from(gm).unwrap();
 
