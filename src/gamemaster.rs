@@ -2,8 +2,6 @@ use crate::model::{Type, TYPE_ORDERING};
 use serde;
 use serde::Deserialize;
 
-use std::convert::TryFrom;
-
 #[derive(Deserialize, Debug)]
 pub struct AvatarCustomization {
   enabled: Option<bool>,
@@ -130,6 +128,23 @@ pub struct GameMaster {
   pub item_templates: Vec<ItemTemplate>,
 }
 
+lazy_static! {
+  static ref GAMEMASTER: GameMaster = {
+    dotenv::dotenv().ok();
+    let gm_path = std::env::var("PVPTIMIZE_GM_PATH")
+      .unwrap_or_else(|_| String::from("data/gamemaster.json"));
+    let gms = std::fs::read_to_string(gm_path).unwrap();
+    let gm = serde_json::from_str::<GameMaster>(&gms).unwrap();
+    gm
+  };
+}
+
+impl GameMaster {
+  pub fn instance() -> &'static GameMaster {
+    &GAMEMASTER
+  }
+}
+
 #[cfg(test)]
 mod test {
 
@@ -138,10 +153,10 @@ mod test {
 
   #[test]
   fn test() {
-    let gms = std::fs::read_to_string("data/gamemaster.json").unwrap();
-    let gm = serde_json::from_str::<GameMaster>(&gms).unwrap();
-
-    let mech = Mechanics::try_from(gm).unwrap();
+    // let gms = std::fs::read_to_string("data/gamemaster.json").unwrap();
+    // let gm = serde_json::from_str::<GameMaster>(&gms).unwrap();
+    // let mech = Mechanics::try_from(gm).unwrap();
+    let mech = Mechanics::instance();
     let steel_psychic = mech.dual_type_effectiveness(Type::Steel, Type::Psychic);
 
     assert!((steel_psychic[&Type::Poison] - 0.391).abs() < 10e-3);

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::cmp::{PartialEq, PartialOrd, Eq, Ord, Ordering};
 
 use crate::error::*;
 use crate::gamemaster as gm;
@@ -16,21 +17,58 @@ pub struct Pokemon {
   pub stats: gm::Stats,
   pub type1: Type,
   pub type2: Option<Type>,
-  pub fast_moves: Vec<FastMove>,
-  pub charged_moves: Vec<ChargedMove>,
+  pub fast_moves: HashMap<String, FastMove>,
+  pub charged_moves: HashMap<String, ChargedMove>,
   pub type_effectiveness: HashMap<Type, f64>,
 }
 
 // === Level ===
 
+#[derive(PartialEq, PartialOrd, Eq, Copy, Clone)]
 pub struct Level {
   pub level: u16,
   pub a_half: bool,
 }
 
+impl Ord for Level {
+  fn cmp(&self, other: &Level) -> Ordering {
+    if self.level == other.level {
+      if self.a_half && !other.a_half {
+        Ordering::Greater
+      } else if !self.a_half && other.a_half {
+        Ordering::Less
+      } else {
+        Ordering::Equal
+      }
+    } else {
+      self.level.cmp(&other.level)
+    }
+  }
+}
+
 impl From<&Level> for u16 {
   fn from(l: &Level) -> u16 {
     (l.level - 1) * 2 + (if l.a_half { 1 } else { 0 })
+  }
+}
+
+impl Level {
+  pub fn next(&self) -> Level {
+    if self.a_half {
+      Level { level: self.level + 1, a_half: false }
+    } else {
+      Level { level: self.level, a_half: true }
+    }
+  }
+
+  pub fn prev(&self) -> Level {
+    if self.a_half {
+      Level { level: self.level, a_half: false }
+    } else if self.level <= 1 {
+      Level { level: 1, a_half: false }
+    } else {
+      Level { level: std::cmp::max(1, self.level - 1), a_half: true }
+    }
   }
 }
 

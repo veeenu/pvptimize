@@ -2,6 +2,8 @@
 extern crate serde;
 #[macro_use]
 extern crate serde_json;
+#[macro_use]
+extern crate lazy_static;
 
 use std::collections::HashMap;
 use std::convert::TryFrom;
