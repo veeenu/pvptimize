@@ -107,10 +107,10 @@ mod tests {
 
   #[test]
   fn test_cp_formula() {
-    let gms = std::fs::read_to_string("data/gamemaster.json").unwrap();
-    let gm = serde_json::from_str::<GameMaster>(&gms).unwrap();
-
-    let mech = Mechanics::try_from(gm).unwrap();
+    // let gms = std::fs::read_to_string("data/gamemaster.json").unwrap();
+    // let gm = serde_json::from_str::<gm::GameMaster>(&gms).unwrap();
+    // let mech = Mechanics::try_from(gm).unwrap();
+    let mech = Mechanics::instance();
 
     /*println!("{:?}", gm.item_templates.iter().find(|v| {
       if let Some(gm::GameMasterEntry::PvPMove(m)) = &v.entry {

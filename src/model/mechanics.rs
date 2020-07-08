@@ -1,5 +1,5 @@
 use crate::error::*;
-use crate::gamemaster as gm;
+use crate::gamemaster::{self as gm, GameMaster};
 use crate::model::{Type, TYPE_ORDERING};
 use crate::model::moves::*;
 use crate::model::pokemon::*;
@@ -22,16 +22,17 @@ pub struct Mechanics {
   pub type_effectiveness: HashMap<Type, HashMap<Type, f64>>,
 }
 
-impl TryFrom<gm::GameMaster> for Mechanics {
-  type Error = Error;
-
-  fn try_from(gm: gm::GameMaster) -> Result<Mechanics, Error> {
-    Mechanics::new(gm)
-  }
+lazy_static! {
+  static ref MECHANICS: Mechanics = Mechanics::new().unwrap();
 }
 
 impl Mechanics {
-  fn new(gm: gm::GameMaster) -> Result<Mechanics, Error> {
+  pub fn instance() -> &'static Mechanics {
+    &MECHANICS
+  }
+
+  fn new() -> Result<Mechanics, Error> {
+    let gm = GameMaster::instance();
     let fast_moves = {
       gm.item_templates
         .iter()
@@ -91,7 +92,6 @@ impl Mechanics {
     };
 
     Ok(Mechanics {
-      // gamemaster: gm,
       pokemon: Mechanics::build_pokemons(&gm, &fast_moves, &charged_moves, &type_effectiveness)?,
       fast_moves,
       charged_moves,
@@ -158,16 +158,9 @@ impl Mechanics {
     charged_move2: Option<&str>
   ) -> Result<PokemonInstance, Error> {
     if let Some(pok) = self.pokemon(pokemon_id) {
-      /*PokemonInstance::new(
-        pok,
-        level,
-        atk_iv, def_iv, sta_iv,
-        fast_move, charged_move1, charged_move2,
-        self
-      )*/
       let charged_move2 = charged_move2.unwrap_or(charged_move1);
 
-      let fast_move = match pok.fast_moves.iter().find(|i| i.uid == fast_move) {
+      let fast_move = match pok.fast_moves.get(fast_move) {
         Some(i) => i.clone(),
         None => {
           return Err(Error::ParseError(format!(
@@ -177,7 +170,7 @@ impl Mechanics {
         }
       };
 
-      let charged_move1 = match pok.charged_moves.iter().find(|i| i.uid == charged_move1) {
+      let charged_move1 = match pok.charged_moves.get(charged_move1) {
         Some(i) => i.clone(),
         None => {
           return Err(Error::ParseError(format!(
@@ -187,7 +180,7 @@ impl Mechanics {
         }
       };
 
-      let charged_move2 = match pok.charged_moves.iter().find(|&i| i.uid == charged_move2) {
+      let charged_move2 = match pok.charged_moves.get(charged_move2) {
         Some(i) => i.clone(),
         None => {
           return Err(Error::ParseError(format!(
@@ -260,7 +253,7 @@ impl Mechanics {
               .iter()
               .filter_map(|(i, v)| {
                 if ps.quick_moves.iter().any(|x| x == i) {
-                  Some(v.clone())
+                  Some((i.clone(), v.clone()))
                 } else {
                   None
                 }
@@ -270,7 +263,7 @@ impl Mechanics {
               .iter()
               .filter_map(|(i, v)| {
                 if ps.cinematic_moves.iter().any(|x| x == i) {
-                  Some(v.clone())
+                  Some((i.clone(), v.clone()))
                 } else {
                   None
                 }
@@ -346,13 +339,13 @@ impl Mechanics {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::gamemaster::*;
 
   #[test]
   fn test_type_effectiveness() {
-    let gms = std::fs::read_to_string("data/gamemaster.json").unwrap();
-    let gm = serde_json::from_str::<GameMaster>(&gms).unwrap();
-    let mech = Mechanics::try_from(gm).unwrap();
+    // let gms = std::fs::read_to_string("data/gamemaster.json").unwrap();
+    // let gm = serde_json::from_str::<GameMaster>(&gms).unwrap();
+    // let mech = Mechanics::try_from(gm).unwrap();
+    let mech = Mechanics::instance();
 
     let regi = mech.pokemon_instance(
       "REGISTEEL",

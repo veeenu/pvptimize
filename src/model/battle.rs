@@ -407,10 +407,10 @@ mod tests {
   #[test]
   fn test_victreebel_vs_whiscash() {
     // https://pvpoke.com/battle/1500/victreebel-23-1-15-15-4-4-1/whiscash-28-0-14-13-4-4-1/22/1-2-1/0-2-1/
-    let gms = std::fs::read_to_string("data/gamemaster.json").unwrap();
-    let gm = serde_json::from_str::<GameMaster>(&gms).unwrap();
-
-    let mech = Mechanics::try_from(gm).unwrap();
+    // let gms = std::fs::read_to_string("data/gamemaster.json").unwrap();
+    // let gm = serde_json::from_str::<GameMaster>(&gms).unwrap();
+    // let mech = Mechanics::try_from(gm).unwrap();
+    let mech = Mechanics::instance();
 
     let victreebel = mech.pokemon_instance(
       "VICTREEBEL",
@@ -441,10 +441,10 @@ mod tests {
   #[test]
   fn test_lucario_mirror() {
     // https://pvpoke.com/battle/1500/lucario-21-15-0-0-4-4-1/lucario-20.5-0-15-15-4-4-1/22/1-1-5/1-1-5/
-    let gms = std::fs::read_to_string("data/gamemaster.json").unwrap();
-    let gm = serde_json::from_str::<GameMaster>(&gms).unwrap();
-
-    let mech = Mechanics::try_from(gm).unwrap();
+    // let gms = std::fs::read_to_string("data/gamemaster.json").unwrap();
+    // let gm = serde_json::from_str::<GameMaster>(&gms).unwrap();
+    // let mech = Mechanics::try_from(gm).unwrap();
+    let mech = Mechanics::instance();
 
     let lucario_attacker = mech.pokemon_instance(
       "LUCARIO",
@@ -478,10 +478,10 @@ mod tests {
   #[test]
   fn test_registeel_mirror() {
     // https://pvpoke.com/battle/1500/registeel-22.5-15-2-5-4-4-1/registeel-24.5-1-12-1-4-4-1/22/0-1-2/0-1-2/
-    let gms = std::fs::read_to_string("data/gamemaster.json").unwrap();
-    let gm = serde_json::from_str::<GameMaster>(&gms).unwrap();
-
-    let mech = Mechanics::try_from(gm).unwrap();
+    // let gms = std::fs::read_to_string("data/gamemaster.json").unwrap();
+    // let gm = serde_json::from_str::<GameMaster>(&gms).unwrap();
+    // let mech = Mechanics::try_from(gm).unwrap();
+    let mech = Mechanics::instance();
 
     let regi1 = mech.pokemon_instance(
       "REGISTEEL",
